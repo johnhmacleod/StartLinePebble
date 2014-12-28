@@ -9,6 +9,11 @@
     "resources": {
         "media": [
             {
+                "file": "images/StartLine.png",
+                "name": "MENU_IMAGE",
+                "type": "png"
+            },
+            {
                 "file": "images/bwarrow.png",
                 "name": "BW_ARROW",
                 "type": "png"

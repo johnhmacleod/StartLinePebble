@@ -16,30 +16,44 @@
     #define KEY_WIND_SHIFT 13
     #define KEY_LAST_TACK 14
     #define KEY_MARK_LAY_DIST 15
-    #define KEY_TARGET_TACK 16
+    #define KEY_TARGET_SPEED 16
+    #define KEY_TARGET_ANGLE 17
+
 
   
 #define MAPPING_PKEY  100
-  
+
+  // This is a simple menu layer
+static SimpleMenuLayer *simple_menu_layer;
+
+// A simple menu layer can have multiple sections
+static SimpleMenuSection menu_sections[1];
+
+#define NUM_MENU_ITEMS 3
+#define NUM_MENU_SECTIONS 1
+// Each section is composed of a number of menu items
+static SimpleMenuItem menu_items[NUM_MENU_ITEMS];
   
 static Window *s_main_window;
-static TextLayer *s_data_layer[10];
-static TextLayer *s_data_title[10];
+static TextLayer *s_data_layer[20];
+static TextLayer *s_data_small[20];
+static TextLayer *s_data_title[20];
 
 void doupdate();
 void updatescreen();
+
 
 static int currentScreen = 0;
 static int configuring = 0; // Set to 1 when configuring display
 static int configuring_field = 0; // Index of the title we are currently configuring
 
 
-#define MAX_TITLES  9 //Number of elements in title array
+#define MAX_TITLES  12 //Number of elements in title array
 
 static int data_field_keys[] = {KEY_LAY_BURN, KEY_LAY_DIST, KEY_LAY_TIME, KEY_LINE_BURN, KEY_LINE_DIST, KEY_LINE_TIME,
-                                   KEY_LINE_ANGLE, KEY_SECS_TO_START, KEY_LAY_SEL };
+                                   KEY_LINE_ANGLE, KEY_SECS_TO_START, KEY_LAY_SEL, KEY_TARGET_SPEED, KEY_TARGET_ANGLE, KEY_BOAT_SPEED };
 static char *data_titles[] = {"Lay Burn", "Lay Dist", "Lay Time", "Line Burn", "Line Dist", "Line Time",
-                               "Line Angle", "To Start", "Lay Line"};
+                               "Line Angle", "To Start", "Lay Line", "Tgt Speed", "Tgt Angle", "Boat Spd"};
 
 
 typedef struct 
@@ -59,10 +73,10 @@ static Screen screens[NUM_SCREENS] = {
                                       {0,1,2,3,4,5},
                                       true
                                         },
-                                      {2,
-                                      {0,1},
-                                      {6,7},
-                                      {6,7},
+                                      {4,
+                                      {0,1,2,3},
+                                      {8,9,10,11},
+                                      {8,9,10,11},
                                       true
                                       },
                                       {2,
@@ -74,18 +88,20 @@ static Screen screens[NUM_SCREENS] = {
                                     };  // Code relies on the rest of the array being zero to indicate screens not in use.
 
 
-static GFont s_data_font, s_data_font_alpha, s_title_font, s_small_data_font, s_large_title_font, font;
+static GFont s_data_font, s_data_font_alpha, s_title_font, s_small_data_font, s_medium_title_font, s_large_title_font, font;
 
 static BitmapLayer *s_background_layer, *s_arrow_layer;
 static GBitmap *s_background_bitmap, *s_arrow_bitmap;
 
 static void main_window_load(Window *window) {
   
+  APP_LOG(APP_LOG_LEVEL_ERROR, "In Main_window_load");
   // Use system font, apply it and add to Window
   s_data_font = fonts_get_system_font(FONT_KEY_ROBOTO_BOLD_SUBSET_49);
   s_data_font_alpha = fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD);
   s_title_font = fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
   s_large_title_font = fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
+  s_medium_title_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
   s_small_data_font = fonts_get_system_font(FONT_KEY_BITHAM_34_MEDIUM_NUMBERS);
   
   //Create GBitmap, then set to created BitmapLayer
@@ -104,63 +120,125 @@ static void main_window_load(Window *window) {
   // Create Display RectAngles
   
   // Six data fields & their titles
-  s_data_layer[0] = text_layer_create(GRect(0, 1, 72, 49));
-  s_data_title[0] = text_layer_create(GRect(0, 48, 72, 15));
-  s_data_layer[1] = text_layer_create(GRect(72, 1, 72, 49));
-  s_data_title[1] = text_layer_create(GRect(72, 48, 72, 15));
-  s_data_layer[2] = text_layer_create(GRect(0, 53, 72, 49));
-  s_data_title[2] = text_layer_create(GRect(0, 102, 72, 14));
-  s_data_layer[3] = text_layer_create(GRect(72, 53, 72, 49));
-  s_data_title[3] = text_layer_create(GRect(72, 102, 72, 14));
-  s_data_layer[4] = text_layer_create(GRect(0, 106, 72, 49));
-  s_data_title[4] = text_layer_create(GRect(0, 153, 72, 15));
-  s_data_layer[5] = text_layer_create(GRect(72, 106, 72, 49));
-  s_data_title[5] = text_layer_create(GRect(72, 153, 72, 15));
+  #define SIX_FIELD_INDEX 0
+  s_data_layer[0] = text_layer_create(GRect(0, 1, 71, 49));
+  s_data_small[0] = text_layer_create(GRect(0, 15, 71, 34));
+  s_data_title[0] = text_layer_create(GRect(0, 48, 71, 15));
+
+  s_data_layer[1] = text_layer_create(GRect(73, 1, 71, 49));
+  s_data_small[1] = text_layer_create(GRect(73, 15, 71, 34));
+  s_data_title[1] = text_layer_create(GRect(73, 48, 71, 15));
+  
+  s_data_layer[2] = text_layer_create(GRect(0, 53, 71, 49));
+  s_data_small[2] = text_layer_create(GRect(0, 68, 71, 34));
+  s_data_title[2] = text_layer_create(GRect(0, 102, 71, 14));
+  
+  s_data_layer[3] = text_layer_create(GRect(73, 53, 71, 49));
+  s_data_small[3] = text_layer_create(GRect(73, 68, 71, 34));
+  s_data_title[3] = text_layer_create(GRect(73, 102, 71, 14));
+  
+  s_data_layer[4] = text_layer_create(GRect(0, 106, 71, 49));
+  s_data_small[4] = text_layer_create(GRect(0, 121, 71, 34));
+  s_data_title[4] = text_layer_create(GRect(0, 153, 71, 15));
+  
+  s_data_layer[5] = text_layer_create(GRect(73, 106, 71, 49));
+  s_data_small[5] = text_layer_create(GRect(73, 121, 71, 34));
+  s_data_title[5] = text_layer_create(GRect(73, 153, 71, 15));
   
   // Two data fields & their titles
-  s_data_layer[6] = text_layer_create(GRect(0, 10, 144, 65));
-  s_data_title[6] = text_layer_create(GRect(0, 55, 144, 34));
-  s_data_layer[7] = text_layer_create(GRect(0, 89, 144, 65));
-  s_data_title[7] = text_layer_create(GRect(0, 134, 144, 34));
-  
-  // Top title
-  s_data_layer[8] = text_layer_create(GRect(0, 0, 144, 14));
+  #define TWO_FIELD_INDEX 6
+  s_data_layer[6] = text_layer_create(GRect(0, 10, 144, 50));
+  s_data_small[6] = text_layer_create(GRect(0, 10, 144, 50)); // Plenty of space!
+  s_data_title[6] = text_layer_create(GRect(36, 65, 72, 24));
+  s_data_layer[7] = text_layer_create(GRect(0, 89, 144, 50));
+  s_data_small[7] = text_layer_create(GRect(0, 89, 144, 50));
+  s_data_title[7] = text_layer_create(GRect(36, 144, 72, 24));
 
   
+  // Four data fields & their titles
+  #define FOUR_FIELD_INDEX 8
+  s_data_layer[8] = text_layer_create(GRect(0, 12, 71, 55));
+  s_data_small[8] = text_layer_create(GRect(0, 25, 71, 34));
+  s_data_title[8] = text_layer_create(GRect(0, 65, 71, 24));
+  s_data_layer[9] = text_layer_create(GRect(73, 13, 71, 55));
+  s_data_small[9] = text_layer_create(GRect(73, 25, 71, 34));
+  s_data_title[9] = text_layer_create(GRect(73, 65, 71, 24));
+ 
+  s_data_layer[10] = text_layer_create(GRect(0, 89, 71, 55));
+  s_data_small[10] = text_layer_create(GRect(0, 104, 71, 34));
+  s_data_title[10] = text_layer_create(GRect(0, 144, 71, 24));
+  s_data_layer[11] = text_layer_create(GRect(73, 89, 71, 55));
+  s_data_small[11] = text_layer_create(GRect(73, 104, 71, 34));
+  s_data_title[11] = text_layer_create(GRect(73, 144, 71, 24));
+
+  
+  // Top title
+  #define TITLE_INDEX 12
+  s_data_layer[TITLE_INDEX] = text_layer_create(GRect(0, 0, 144, 16));
+
+  // Set up top title area
+    text_layer_set_background_color(s_data_layer[TITLE_INDEX], GColorBlack);
+    text_layer_set_text_color(s_data_layer[TITLE_INDEX], GColorWhite);
+    text_layer_set_text_alignment(s_data_layer[TITLE_INDEX], GTextAlignmentCenter);
+    text_layer_set_text(s_data_layer[TITLE_INDEX], "StartLine");
+    text_layer_set_font(s_data_layer[TITLE_INDEX], s_title_font);
+    layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_data_layer[TITLE_INDEX])); 
+  
+  
+  // Setup the menus
+  //  menu_load(window);
+  static TextLayer *lastLayer;
+  static Layer *dataLayer, *titleLayer;
+  
+  titleLayer = layer_create(GRect(0, 0, 144, 168));
+  layer_insert_below_sibling(titleLayer, (Layer *)s_data_layer[TITLE_INDEX]);
+  
+  dataLayer = layer_create(GRect(0, 0, 144, 168));
+  layer_insert_below_sibling(dataLayer, titleLayer); 
+    
+  //lastLayer = s_data_layer[TITLE_INDEX];
+
   int i;
-  for (i =0; i < 8; i++)
+  for (i =0; i < TITLE_INDEX; i++)
     {
     text_layer_set_background_color(s_data_layer[i], GColorClear);
     text_layer_set_text_color(s_data_layer[i], GColorWhite);
     text_layer_set_text_alignment(s_data_layer[i], GTextAlignmentCenter);
-    text_layer_set_font(s_data_layer[i], s_data_font);      
-    layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_data_layer[i]));
+    text_layer_set_font(s_data_layer[i], s_data_font);     
+    layer_add_child(dataLayer, text_layer_get_layer(s_data_layer[i]));
+    //layer_insert_below_sibling(text_layer_get_layer(s_data_layer[i]), text_layer_get_layer(lastLayer)); 
+    
+    text_layer_set_background_color(s_data_small[i], GColorClear);
+    text_layer_set_text_color(s_data_small[i], GColorWhite);
+    text_layer_set_text_alignment(s_data_small[i], GTextAlignmentCenter);
+    text_layer_set_font(s_data_small[i], s_small_data_font);
+    //layer_insert_below_sibling(text_layer_get_layer(s_data_small[i]), text_layer_get_layer(lastLayer)); 
+    layer_add_child(dataLayer, text_layer_get_layer(s_data_small[i]));
 
     text_layer_set_background_color(s_data_title[i], GColorClear);
     text_layer_set_text_color(s_data_title[i], GColorWhite);
     text_layer_set_text_alignment(s_data_title[i], GTextAlignmentCenter);
     
-    if (i<6) // Small title fonts on the 6 field layout
+    if (i<(TWO_FIELD_INDEX)) // Small title fonts on the 6 field layout
       text_layer_set_font(s_data_title[i], s_title_font);
-    else //Large title font on the 3 field layout
+    else if (i<FOUR_FIELD_INDEX)
       text_layer_set_font(s_data_title[i], s_large_title_font);
-    
-    layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_data_title[i]));
+    else //Large title font on the 2 & 4 field layout
+      text_layer_set_font(s_data_title[i], s_medium_title_font);
+   
+    //layer_insert_above_sibling(text_layer_get_layer(s_data_title[i]), text_layer_get_layer(s_data_layer[i])); 
+    layer_add_child(titleLayer, text_layer_get_layer(s_data_title[i]));
+ 
+    //lastLayer = s_data_layer[i];
 
   }
   
-  // Set up top title area
-    text_layer_set_background_color(s_data_layer[8], GColorClear);
-    text_layer_set_text_color(s_data_layer[8], GColorWhite);
-    text_layer_set_text_alignment(s_data_layer[8], GTextAlignmentCenter);
-    text_layer_set_text(s_data_layer[8], "StartLine");
-    text_layer_set_font(s_data_layer[8], s_title_font);
-    layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_data_layer[8])); 
-  
+
+
   // Go find a screen with some fields in use
   for (currentScreen = 0; screens[currentScreen].num_fields == 0; currentScreen++)
     ;
-  
+
   // And make it the current screen
   updatescreen(currentScreen,"00");
 }
@@ -177,13 +255,17 @@ static void main_window_unload(Window *window) {
   
   // Destroy TextLayer
   int i;
-  for (i=0; i<8; i++)
+  for (i=0; i<TITLE_INDEX; i++)
   {
   text_layer_destroy(s_data_layer[i]);
   text_layer_destroy(s_data_title[i]);
+//  if (i < TWO_FIELD_INDEX)
+    text_layer_destroy(s_data_small[i]);
   }
 
-  text_layer_destroy(s_data_layer[8]);
+  text_layer_destroy(s_data_layer[TITLE_INDEX]);
+  
+  simple_menu_layer_destroy(simple_menu_layer);
 }
 
 
@@ -200,7 +282,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 
   // For all items
   int j=0;
-  bool foundKey;
+  bool foundKey, negNum;
   
   while(t != NULL) {
     foundKey = true;
@@ -214,17 +296,22 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
       case KEY_LINE_ANGLE:
       case KEY_LINE_TIME:
       case KEY_SECS_TO_START:
+      case KEY_BOAT_SPEED:
+      snprintf(buffer[j], sizeof(buffer[j]),"%d", abs((int)t->value->int32));
+      negNum = ((int)t->value->int32 < 0);
+      
       font = s_data_font; // Preselect a numbers-only font
-      snprintf(buffer[j], sizeof(buffer[j]),"%d", (int)t->value->int32);
-      // APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d Value %s", (int)t->key, (char *)buffer[j]);
+  
+//      APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d Value %s", (int)t->key, (char *)buffer[j]);
       break;
       case KEY_LAY_SEL:
+      negNum = false;
       font = s_data_font_alpha; // Switch to a font that can display alpha
       snprintf(buffer[j], sizeof(buffer[j]),"%s", t->value->cstring);
       // APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d Value %s", (int)t->key, (char *)buffer[j]);
       break;
     default:
-      APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d not recognized!", (int)t->key);
+      // APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d not recognized!", (int)t->key);
       foundKey = false;
       break;
     }
@@ -233,10 +320,43 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
       int i;
         for (i=0; i<screens[currentScreen].num_fields; i++)
           {
-          if (data_field_keys[screens[currentScreen].field_data_map[i]] == (int)t->key)
+          if (data_field_keys[screens[currentScreen].field_data_map[i]] == (int)t->key) // Did we find a match?
             {
-            text_layer_set_font(s_data_layer[screens[currentScreen].field_layer_map[i]], font);  
-            text_layer_set_text(s_data_layer[screens[currentScreen].field_layer_map[i]], buffer[j]);
+            text_layer_set_font(s_data_layer[screens[currentScreen].field_layer_map[i]], font);  //Set to the chosen (num/alpha) font)
+            if (strlen(buffer[j]) <= 2 || screens[currentScreen].num_fields == 2) // Short string, or wide fields available
+              {
+              text_layer_set_text(s_data_small[screens[currentScreen].field_layer_map[i]], ""); //Blank the small font field in case
+              text_layer_set_text(s_data_layer[screens[currentScreen].field_layer_map[i]], buffer[j]); //Set the regular font field
+              if (negNum) // Did we get a negative number
+                {
+                text_layer_set_background_color(s_data_small[screens[currentScreen].field_layer_map[i]], GColorClear);
+                text_layer_set_text_color(s_data_small[screens[currentScreen].field_layer_map[i]], GColorWhite);
+                text_layer_set_background_color(s_data_layer[screens[currentScreen].field_layer_map[i]], GColorWhite);
+                text_layer_set_text_color(s_data_layer[screens[currentScreen].field_layer_map[i]], GColorBlack);
+              } else // No, positive number
+                {
+                text_layer_set_background_color(s_data_layer[screens[currentScreen].field_layer_map[i]], GColorClear);
+                text_layer_set_text_color(s_data_layer[screens[currentScreen].field_layer_map[i]], GColorWhite);
+                text_layer_set_background_color(s_data_small[screens[currentScreen].field_layer_map[i]], GColorClear);
+                text_layer_set_text_color(s_data_small[screens[currentScreen].field_layer_map[i]], GColorWhite);
+              }
+            }
+            else // Long data >2 chars
+              {
+              text_layer_set_text(s_data_layer[screens[currentScreen].field_layer_map[i]], ""); // Blank normal font field & reset inverse in case
+              text_layer_set_background_color(s_data_layer[screens[currentScreen].field_layer_map[i]], GColorClear);
+              text_layer_set_text_color(s_data_layer[screens[currentScreen].field_layer_map[i]], GColorWhite);
+              text_layer_set_text(s_data_small[screens[currentScreen].field_layer_map[i]], buffer[j]);
+              if (negNum)
+                {
+                text_layer_set_background_color(s_data_small[screens[currentScreen].field_layer_map[i]], GColorWhite);
+                text_layer_set_text_color(s_data_small[screens[currentScreen].field_layer_map[i]], GColorBlack);
+              } else
+                {
+                text_layer_set_background_color(s_data_small[screens[currentScreen].field_layer_map[i]], GColorClear);
+                text_layer_set_text_color(s_data_small[screens[currentScreen].field_layer_map[i]], GColorWhite);
+              }
+            }
           }
         }
     // Use next buffer - seems that the buffer remains in use until the data actually appears on the screen
@@ -253,8 +373,16 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 static void inbox_dropped_callback(AppMessageResult reason, void *context) {
   // APP_LOG(APP_LOG_LEVEL_ERROR, "Message dropped!");
 }
- 
+
+//
+//
+// ****************************
+// All the button handlers here
+// ****************************
+//
+
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
+         // APP_LOG(APP_LOG_LEVEL_INFO, "SELECT click");
 if (configuring)
     { // Set the current title back to normal
     text_layer_set_background_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorClear);
@@ -269,14 +397,10 @@ if (configuring)
     text_layer_set_text_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorBlack);
 
   }
-  else { // Not configuring - just step to next screen
-    do { // Search through screens to find the next one in use
-  currentScreen++;
-  if (currentScreen == NUM_SCREENS)
-    currentScreen = 0;
-    } while (screens[currentScreen].num_fields == 0);
-    updatescreen(currentScreen,"00");
-  }
+else {
+ 
+}
+
   
 }
 
@@ -293,6 +417,15 @@ static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
                               data_titles[screens[currentScreen].field_data_map[configuring_field]]);
  
 }
+  else { // Not configuring - just step to next screen
+    do { // Search through screens to find the next one in use
+  currentScreen--;
+  if (currentScreen <0)
+    currentScreen = NUM_SCREENS - 1;
+    } while (screens[currentScreen].num_fields == 0);
+    updatescreen(currentScreen,"00");
+  }
+  
 }
 
 
@@ -308,6 +441,15 @@ static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
                               data_titles[screens[currentScreen].field_data_map[configuring_field]]);
  
 }
+  else { // Not configuring - just step to next screen
+    do { // Search through screens to find the next one in use
+  currentScreen++;
+  if (currentScreen == NUM_SCREENS)
+    currentScreen = 0;
+    } while (screens[currentScreen].num_fields == 0);
+    updatescreen(currentScreen,"00");
+  }
+  
 }
   
 //
@@ -407,7 +549,6 @@ static void init() {
   // Show the Window on the watch, with animated=true
   window_stack_push(s_main_window, true);
   
-  
   // Register callbacks
   app_message_register_inbox_received(inbox_received_callback);
   app_message_register_inbox_dropped(inbox_dropped_callback);
@@ -423,14 +564,20 @@ static void deinit() {
 
 int main(void) {
   int i;
-
+  //APP_LOG(APP_LOG_LEVEL_ERROR, "In Main");
   //Read configuration back from storage - also need a way to reset to defaults
   for (i=0; i<NUM_SCREENS; i++)
       if (persist_exists(MAPPING_PKEY + i))
         persist_read_data(MAPPING_PKEY + i, &screens[i], sizeof(screens[i]));
 
   init();
+  
+  app_comm_set_sniff_interval(SNIFF_INTERVAL_REDUCED); // Beware!! Increased power usage, but much better responsiveness
+
   app_event_loop();
+
+  app_comm_set_sniff_interval(SNIFF_INTERVAL_NORMAL);
+
   deinit();
   
    //Save configuration to storage
@@ -453,8 +600,13 @@ void updatescreen(int thisScreen, char *initialValue)
     for (i=0; i< screens[lastScreen].num_fields; i++)
         {
         text_layer_set_text(s_data_layer[screens[lastScreen].field_layer_map[i]], "");
+        text_layer_set_text(s_data_small[screens[lastScreen].field_layer_map[i]], "");
         text_layer_set_text(s_data_title[screens[lastScreen].field_layer_map[i]], "");
-        //text_layer_set_text(s_data_small[screens[lastScreen].field_layer_map[i]], "");
+        text_layer_set_background_color(s_data_title[screens[lastScreen].field_layer_map[i]], GColorClear); 
+        text_layer_set_background_color(s_data_layer[screens[lastScreen].field_layer_map[i]], GColorClear);
+        text_layer_set_text_color(s_data_layer[screens[lastScreen].field_layer_map[i]], GColorWhite);
+        text_layer_set_background_color(s_data_small[screens[lastScreen].field_layer_map[i]], GColorClear);
+        text_layer_set_text_color(s_data_small[screens[lastScreen].field_layer_map[i]], GColorWhite);
       } 
   }
 
@@ -469,6 +621,7 @@ void updatescreen(int thisScreen, char *initialValue)
     // Set up titles
     for (i=0; i<screens[thisScreen].num_fields; i++)
       {
+      text_layer_set_background_color(s_data_title[screens[thisScreen].field_layer_map[i]], GColorBlack);
       text_layer_set_text(s_data_title[screens[thisScreen].field_layer_map[i]], data_titles[screens[thisScreen].field_data_map[i]]);
     }
   lastScreen = thisScreen;
