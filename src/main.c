@@ -38,6 +38,7 @@ static Window *s_main_window;
 static TextLayer *s_data_layer[20];
 static TextLayer *s_data_small[20];
 static TextLayer *s_data_title[20];
+static TextLayer *messageLayer;
 
 void doupdate();
 void updatescreen();
@@ -46,7 +47,7 @@ void updatescreen();
 static int currentScreen = 0;
 static int configuring = 0; // Set to 1 when configuring display
 static int configuring_field = 0; // Index of the title we are currently configuring
-
+static bool doubleClick = false;
 
 #define MAX_TITLES  12 //Number of elements in title array
 
@@ -66,6 +67,28 @@ typedef struct
 } Screen;
 
 #define NUM_SCREENS 10
+
+static Screen screenDefault[3] = {
+                                      {6,
+                                      {0,1,2,3,4,5},
+                                      {0,1,2,3,4,5},
+                                      {0,1,2,3,4,5},
+                                      true
+                                        },
+                                      {4,
+                                      {0,1,2,3},
+                                      {8,9,10,11},
+                                      {8,9,10,11},
+                                      true
+                                      },
+                                      {2,
+                                      {2,3},
+                                      {6,7},
+                                      {6,7},
+                                      true
+                                      }
+                                    };
+
 static Screen screens[NUM_SCREENS] = {
                                       {6,
                                       {0,1,2,3,4,5},
@@ -95,7 +118,7 @@ static GBitmap *s_background_bitmap, *s_arrow_bitmap;
 
 static void main_window_load(Window *window) {
   
-  APP_LOG(APP_LOG_LEVEL_ERROR, "In Main_window_load");
+  //APP_LOG(APP_LOG_LEVEL_ERROR, "In Main_window_load");
   // Use system font, apply it and add to Window
   s_data_font = fonts_get_system_font(FONT_KEY_ROBOTO_BOLD_SUBSET_49);
   s_data_font_alpha = fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD);
@@ -123,11 +146,11 @@ static void main_window_load(Window *window) {
   #define SIX_FIELD_INDEX 0
   s_data_layer[0] = text_layer_create(GRect(0, 1, 71, 49));
   s_data_small[0] = text_layer_create(GRect(0, 15, 71, 34));
-  s_data_title[0] = text_layer_create(GRect(0, 48, 71, 15));
+  s_data_title[0] = text_layer_create(GRect(0, 49, 71, 15));
 
   s_data_layer[1] = text_layer_create(GRect(73, 1, 71, 49));
   s_data_small[1] = text_layer_create(GRect(73, 15, 71, 34));
-  s_data_title[1] = text_layer_create(GRect(73, 48, 71, 15));
+  s_data_title[1] = text_layer_create(GRect(73, 49, 71, 15));
   
   s_data_layer[2] = text_layer_create(GRect(0, 53, 71, 49));
   s_data_small[2] = text_layer_create(GRect(0, 68, 71, 34));
@@ -139,20 +162,21 @@ static void main_window_load(Window *window) {
   
   s_data_layer[4] = text_layer_create(GRect(0, 106, 71, 49));
   s_data_small[4] = text_layer_create(GRect(0, 121, 71, 34));
-  s_data_title[4] = text_layer_create(GRect(0, 153, 71, 15));
+  s_data_title[4] = text_layer_create(GRect(0, 154, 71, 15));
   
   s_data_layer[5] = text_layer_create(GRect(73, 106, 71, 49));
   s_data_small[5] = text_layer_create(GRect(73, 121, 71, 34));
-  s_data_title[5] = text_layer_create(GRect(73, 153, 71, 15));
+  s_data_title[5] = text_layer_create(GRect(73, 154, 71, 15));
   
   // Two data fields & their titles
   #define TWO_FIELD_INDEX 6
   s_data_layer[6] = text_layer_create(GRect(0, 10, 144, 50));
   s_data_small[6] = text_layer_create(GRect(0, 10, 144, 50)); // Plenty of space!
-  s_data_title[6] = text_layer_create(GRect(36, 65, 72, 24));
+  s_data_title[6] = text_layer_create(GRect(12, 61, 120, 28));
+  
   s_data_layer[7] = text_layer_create(GRect(0, 89, 144, 50));
   s_data_small[7] = text_layer_create(GRect(0, 89, 144, 50));
-  s_data_title[7] = text_layer_create(GRect(36, 144, 72, 24));
+  s_data_title[7] = text_layer_create(GRect(12, 140, 120, 28));
 
   
   // Four data fields & their titles
@@ -175,6 +199,8 @@ static void main_window_load(Window *window) {
   // Top title
   #define TITLE_INDEX 12
   s_data_layer[TITLE_INDEX] = text_layer_create(GRect(0, 0, 144, 16));
+  
+  
 
   // Set up top title area
     text_layer_set_background_color(s_data_layer[TITLE_INDEX], GColorBlack);
@@ -184,10 +210,17 @@ static void main_window_load(Window *window) {
     text_layer_set_font(s_data_layer[TITLE_INDEX], s_title_font);
     layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_data_layer[TITLE_INDEX])); 
   
+  // Set up the messgage layer
+  messageLayer = text_layer_create(GRect(10,30,124,120));
+
+                                   
+  text_layer_set_background_color(messageLayer, GColorClear);
+  text_layer_set_text_color(messageLayer, GColorWhite);
+  text_layer_set_text_alignment(messageLayer, GTextAlignmentCenter);
+  text_layer_set_font(messageLayer, s_large_title_font);
+  layer_add_child(window_get_root_layer(window), text_layer_get_layer(messageLayer)); 
   
-  // Setup the menus
-  //  menu_load(window);
-  static TextLayer *lastLayer;
+  
   static Layer *dataLayer, *titleLayer;
   
   titleLayer = layer_create(GRect(0, 0, 144, 168));
@@ -195,8 +228,6 @@ static void main_window_load(Window *window) {
   
   dataLayer = layer_create(GRect(0, 0, 144, 168));
   layer_insert_below_sibling(dataLayer, titleLayer); 
-    
-  //lastLayer = s_data_layer[TITLE_INDEX];
 
   int i;
   for (i =0; i < TITLE_INDEX; i++)
@@ -206,13 +237,11 @@ static void main_window_load(Window *window) {
     text_layer_set_text_alignment(s_data_layer[i], GTextAlignmentCenter);
     text_layer_set_font(s_data_layer[i], s_data_font);     
     layer_add_child(dataLayer, text_layer_get_layer(s_data_layer[i]));
-    //layer_insert_below_sibling(text_layer_get_layer(s_data_layer[i]), text_layer_get_layer(lastLayer)); 
     
     text_layer_set_background_color(s_data_small[i], GColorClear);
     text_layer_set_text_color(s_data_small[i], GColorWhite);
     text_layer_set_text_alignment(s_data_small[i], GTextAlignmentCenter);
     text_layer_set_font(s_data_small[i], s_small_data_font);
-    //layer_insert_below_sibling(text_layer_get_layer(s_data_small[i]), text_layer_get_layer(lastLayer)); 
     layer_add_child(dataLayer, text_layer_get_layer(s_data_small[i]));
 
     text_layer_set_background_color(s_data_title[i], GColorClear);
@@ -408,7 +437,7 @@ else {
 // Up Click Handler
 //
 static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
-  if (configuring) { // Currently only using this during configuration
+  if (configuring) { 
     screens[currentScreen].field_data_map[configuring_field]++; //Step to the next data item in the list
     if (screens[currentScreen].field_data_map[configuring_field] == MAX_TITLES) // Wrap at the end
       screens[currentScreen].field_data_map[configuring_field] = 0;
@@ -417,7 +446,31 @@ static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
                               data_titles[screens[currentScreen].field_data_map[configuring_field]]);
  
 }
-  else { // Not configuring - just step to next screen
+  else if (doubleClick) //Confirming reset to default
+    {
+    doubleClick = false;
+    text_layer_set_text(messageLayer,"");  
+      
+    int i;
+    for (i=0; i<3; i++) // Step through 3 default screens
+      {
+          screens[i].num_fields = screenDefault[i].num_fields;
+          int j;
+          for (j=0; j<screenDefault[i].num_fields; j++) // Copy the maps from the default screen
+            {
+            screens[i].field_layer_map[j] = screenDefault[i].field_layer_map[j];
+            screens[i].field_data_map[j] = screenDefault[i].field_data_map[j];
+            }
+        screens[i].is_start = screens[i].is_start;
+    }
+    for (i=3; i<NUM_SCREENS; i++)
+      screens[i].num_fields = 0;
+    
+    currentScreen = 0;
+    updatescreen(-2, "00");
+  }
+  else  // Step to next screen
+    {
     do { // Search through screens to find the next one in use
   currentScreen--;
   if (currentScreen <0)
@@ -425,7 +478,6 @@ static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
     } while (screens[currentScreen].num_fields == 0);
     updatescreen(currentScreen,"00");
   }
-  
 }
 
 
@@ -441,6 +493,12 @@ static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
                               data_titles[screens[currentScreen].field_data_map[configuring_field]]);
  
 }
+  else if (doubleClick) // Cancelling reset to default
+  {
+    doubleClick = false;
+    text_layer_set_text(messageLayer,"");  
+    updatescreen(currentScreen, "00");
+  }
   else { // Not configuring - just step to next screen
     do { // Search through screens to find the next one in use
   currentScreen++;
@@ -471,6 +529,7 @@ static void long_select_handler(ClickRecognizerRef recognizer, void *context) {
       configuring = 0;
       text_layer_set_background_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorClear);
       text_layer_set_text_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorWhite);
+      updatescreen(currentScreen,"00"); // This should not be needed!
     }
 }
   
@@ -490,40 +549,60 @@ static void long_up_handler(ClickRecognizerRef recognizer, void *context) {
       screens[i].is_start = screens[currentScreen].is_start;
       break;
     }
-    currentScreen = i;
-    updatescreen(currentScreen, "");
-    }    
-  
+    if (i < NUM_SCREENS)
+      {
+      currentScreen = i;
+      updatescreen(currentScreen, "");
+      }    
+    else
+      vibes_long_pulse();
+  } 
 }
 
 static void long_down_handler(ClickRecognizerRef recognizer, void *context) {
-  if (configuring == 0) // Long down deletes the current screen so long as it's not the last of its type
+  if (configuring == 0) // Long down deletes the current screen so long as it's not the last one
   {
     int i;
-    bool ok = false;
+    int ok = 0;  //Always allow delete
     
     for (i=0; i<NUM_SCREENS; i++)
-      if (screens[i].num_fields == screens[currentScreen].num_fields && i != currentScreen &&
-         screens[i].is_start == screens[currentScreen].is_start)
       {
-      ok = true; // We found another one like the one being deleted - OK to delete
-      break;
+      if (screens[i].num_fields != 0)
+        ok++;
     }
     
+//      if (screens[i].num_fields == screens[currentScreen].num_fields && i != currentScreen &&
+//         screens[i].is_start == screens[currentScreen].is_start)
+//      {
+//      ok = true; // We found another one like the one being deleted - OK to delete
+//      break;
+//    }
+    
             
-  if (ok) // OK to delete go find a new screen to display now
+  if (ok > 1) // OK to delete go find a new screen to display now
     {
+    int i;
     for (i=0; i < NUM_SCREENS; i++)
       if (i != currentScreen && screens[i].num_fields != 0) // Avoid selecting the screen we are deleting & unused screens
         break;
     updatescreen(i, "00");  // i is left set to the first in-use screen
     screens[currentScreen].num_fields = 0;  // Take current screen out of use. Can't do this earlier or it breaks updatescreen()
     currentScreen = i;
-  }    
+  }
+    else
+      vibes_long_pulse();
+}
   
 }
-}
 
+static void select_multi_click_handler(ClickRecognizerRef recognizer, void *context) {
+  if (!configuring)
+  {
+    updatescreen(-1,""); //Blank
+  doubleClick = true;
+  text_layer_set_text(messageLayer, "Press UP to reset to default, DOWN otherwise");
+  }
+}
 
 static void click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_SELECT, select_click_handler);
@@ -532,6 +611,7 @@ static void click_config_provider(void *context) {
   window_long_click_subscribe(BUTTON_ID_SELECT, 0, long_select_handler, NULL);
   window_long_click_subscribe(BUTTON_ID_UP, 0, long_up_handler, NULL);
   window_long_click_subscribe(BUTTON_ID_DOWN, 0, long_down_handler, NULL);
+  window_multi_click_subscribe(BUTTON_ID_SELECT, 2, 2, 200, true, select_multi_click_handler);
 }
 
 static void init() {
@@ -564,7 +644,7 @@ static void deinit() {
 
 int main(void) {
   int i;
-  //APP_LOG(APP_LOG_LEVEL_ERROR, "In Main");
+  
   //Read configuration back from storage - also need a way to reset to defaults
   for (i=0; i<NUM_SCREENS; i++)
       if (persist_exists(MAPPING_PKEY + i))
@@ -594,7 +674,12 @@ void updatescreen(int thisScreen, char *initialValue)
     static int lastScreen = -1;  // Remember where we came from 
     int i;
 //       bitmap_layer_set_bitmap(s_arrow_layer, s_arrow_bitmap);
-    
+  if (thisScreen == -2) //Act as if we are starting from scratch -- there is no last screen
+    {
+    lastScreen = -1;
+    thisScreen = 0;
+  }
+  
   if (lastScreen != -1)  // If we had a last screen, blank out fields
     {
     for (i=0; i< screens[lastScreen].num_fields; i++)
@@ -609,7 +694,9 @@ void updatescreen(int thisScreen, char *initialValue)
         text_layer_set_text_color(s_data_small[screens[lastScreen].field_layer_map[i]], GColorWhite);
       } 
   }
-
+  
+if (thisScreen != -1) // -1 if there is no screen to go to -- just blanking out lastScreen prior to default restore;
+  {
     for (i=0; i<screens[thisScreen].num_fields; i++) // For now - put something in the fields
       {
       if (initialValue == NULL)
@@ -625,5 +712,9 @@ void updatescreen(int thisScreen, char *initialValue)
       text_layer_set_text(s_data_title[screens[thisScreen].field_layer_map[i]], data_titles[screens[thisScreen].field_data_map[i]]);
     }
   lastScreen = thisScreen;
+  static char buf[50];
+  snprintf(buf, sizeof(buf), "StartLine    Screen %d", thisScreen + 1);
+  text_layer_set_text(s_data_layer[TITLE_INDEX], buf);
   }
+}
   
