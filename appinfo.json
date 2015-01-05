@@ -9,6 +9,54 @@
     "resources": {
         "media": [
             {
+                "file": "images/SL28.png",
+                "menuIcon": true,
+                "name": "SL_28",
+                "type": "png"
+            },
+            {
+                "characterRegex": "[0-9.A-Z-]",
+                "file": "fonts/PTN57F.ttf",
+                "name": "PTN_52",
+                "trackingAdjust": -3,
+                "type": "font"
+            },
+            {
+                "characterRegex": "[0-9.A-Z-]",
+                "file": "fonts/PTN57F.ttf",
+                "name": "PTN_49",
+                "trackingAdjust": -2,
+                "type": "font"
+            },
+            {
+                "characterRegex": "[0-9.A-Z-]",
+                "file": "fonts/PTN57F.ttf",
+                "name": "PTN_59",
+                "trackingAdjust": -2,
+                "type": "font"
+            },
+            {
+                "characterRegex": "[0-9.-]",
+                "file": "fonts/PTS75F.ttf",
+                "name": "PTB_52",
+                "trackingAdjust": -2,
+                "type": "font"
+            },
+            {
+                "characterRegex": "[0-9.-]",
+                "file": "fonts/PTS75F.ttf",
+                "name": "PTB_49",
+                "trackingAdjust": -2,
+                "type": "font"
+            },
+            {
+                "characterRegex": "[0-9.A-Z-]",
+                "file": "fonts/PTS75F.ttf",
+                "name": "PTB_59",
+                "trackingAdjust": -2,
+                "type": "font"
+            },
+            {
                 "file": "images/StartLine.png",
                 "name": "MENU_IMAGE",
                 "type": "png"

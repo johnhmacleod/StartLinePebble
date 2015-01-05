@@ -1,38 +1,40 @@
 #include "pebble.h"
+#include "math.h"
 
-    #define KEY_LAY_TIME     0
+    #define KEY_LAY_TIME     19
     #define KEY_LAY_DIST  1
     #define KEY_LAY_BURN  2
-    #define KEY_LAY_SEL	 3
+    #define KEY_LAY_SEL	 3 //Selected Lay Line at Start
     #define KEY_LINE_TIME  4
     #define KEY_LINE_BURN  5
     #define KEY_LINE_DIST  6
     #define KEY_LINE_ANGLE  7
     #define KEY_SECS_TO_START  8
-    #define KEY_START_SEQUENCE 9
-    #define KEY_CURRENT_MARK 10
+    #define KEY_START_SEQUENCE 9 // Not used
+    #define KEY_CURRENT_MARK 100
     #define KEY_BOAT_SPEED 11
-    #define KEY_MARK_TURN 12
-    #define KEY_WIND_SHIFT 13
-    #define KEY_LAST_TACK 14
-    #define KEY_MARK_LAY_DIST 15
-    #define KEY_TARGET_SPEED 16
-    #define KEY_TARGET_ANGLE 17
+    #define KEY_MARK_TURN 52
+    #define KEY_WIND_SHIFT 13 // Not used
+    #define KEY_LAST_TACK 58
+    #define KEY_MARK_LAY_DIST 54
+    #define KEY_TARGET_TACK 59
+    #define KEY_TARGET_SPEED 17
+    #define KEY_TARGET_ANGLE 18
+    #define KEY_BOAT_SPEED_MARK 50
+    #define KEY_P_ANGLE 51
+    #define KEY_TIME_TO_MARK 53
+    #define KEY_TACK_HEADER  55
+    #define KEY_HEADING  56
+    #define KEY_ROUTE_NUMBER 57
+
+    
+/*
+sendToPebble(50 speed * 10, 51 pAngle,52 turn,53 (timeToWaypoint * 60),54 distanceToLayline * 1852,55 TackDetect.header,56 boatHeading,57 routeNumber);
 
 
+*/
   
-#define MAPPING_PKEY  100
-
-  // This is a simple menu layer
-static SimpleMenuLayer *simple_menu_layer;
-
-// A simple menu layer can have multiple sections
-static SimpleMenuSection menu_sections[1];
-
-#define NUM_MENU_ITEMS 3
-#define NUM_MENU_SECTIONS 1
-// Each section is composed of a number of menu items
-static SimpleMenuItem menu_items[NUM_MENU_ITEMS];
+#define MAPPING_PKEY  100 // Start key number for persistent storage
   
 static Window *s_main_window;
 static TextLayer *s_data_layer[20];
@@ -49,13 +51,18 @@ static int configuring = 0; // Set to 1 when configuring display
 static int configuring_field = 0; // Index of the title we are currently configuring
 static bool doubleClick = false;
 
-#define MAX_TITLES  12 //Number of elements in title array
+#define MAX_TITLES  23 //Number of elements in title array
 
 static int data_field_keys[] = {KEY_LAY_BURN, KEY_LAY_DIST, KEY_LAY_TIME, KEY_LINE_BURN, KEY_LINE_DIST, KEY_LINE_TIME,
-                                   KEY_LINE_ANGLE, KEY_SECS_TO_START, KEY_LAY_SEL, KEY_TARGET_SPEED, KEY_TARGET_ANGLE, KEY_BOAT_SPEED };
+                                   KEY_LINE_ANGLE, KEY_SECS_TO_START, KEY_LAY_SEL, KEY_TARGET_SPEED, KEY_TARGET_ANGLE, KEY_BOAT_SPEED, 
+                                   KEY_MARK_TURN, KEY_MARK_LAY_DIST, KEY_BOAT_SPEED_MARK, KEY_P_ANGLE, KEY_TIME_TO_MARK, 
+                                   KEY_TACK_HEADER, KEY_HEADING, KEY_ROUTE_NUMBER, KEY_CURRENT_MARK,
+                                   KEY_LAST_TACK, KEY_TARGET_TACK};
 static char *data_titles[] = {"Lay Burn", "Lay Dist", "Lay Time", "Line Burn", "Line Dist", "Line Time",
-                               "Line Angle", "To Start", "Lay Line", "Tgt Speed", "Tgt Angle", "Boat Spd"};
-
+                               "Line Angle", "To Start", "Lay Line", "Tgt Speed", "Tgt Angle", "Boat Spd", 
+                               "Trn to Mk", "MkLay Dst", "Boat SPD", "Heading", "Mins 2 Mk", 
+                               "Tack Hdr", "Bearing", "Route No", "Mark",
+                               "Lst Tack", "Tgt Tack"};
 
 typedef struct 
 {
@@ -110,22 +117,30 @@ static Screen screens[NUM_SCREENS] = {
                                       }
                                     };  // Code relies on the rest of the array being zero to indicate screens not in use.
 
-
-static GFont s_data_font, s_data_font_alpha, s_title_font, s_small_data_font, s_medium_title_font, s_large_title_font, font;
+static GFont s_2_font, s_2_font_alpha, s_2_font_small, s_title_font, s_4_font, s_4_font_alpha, s_4_font_small, 
+              s_6_font, s_6_font_alpha, s_6_font_small, s_medium_title_font, s_large_title_font;
 
 static BitmapLayer *s_background_layer, *s_arrow_layer;
 static GBitmap *s_background_bitmap, *s_arrow_bitmap;
+
+static Layer *dataLayer, *titleLayer; /* Layers to hold all the titles & data - for Z control */
 
 static void main_window_load(Window *window) {
   
   //APP_LOG(APP_LOG_LEVEL_ERROR, "In Main_window_load");
   // Use system font, apply it and add to Window
-  s_data_font = fonts_get_system_font(FONT_KEY_ROBOTO_BOLD_SUBSET_49);
-  s_data_font_alpha = fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD);
+  s_2_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_PTB_59));
+  s_2_font_small = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_PTB_59));
+  s_4_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_PTB_52));
+  s_4_font_small = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_PTN_52));
+  s_6_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_PTB_49));
+  s_6_font_small = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_PTN_49));
+ 
+  
   s_title_font = fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
   s_large_title_font = fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
   s_medium_title_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
-  s_small_data_font = fonts_get_system_font(FONT_KEY_BITHAM_34_MEDIUM_NUMBERS);
+
   
   //Create GBitmap, then set to created BitmapLayer
   s_background_bitmap = gbitmap_create_with_resource(RESOURCE_ID_BACKGROUND_IMAGE);
@@ -145,56 +160,57 @@ static void main_window_load(Window *window) {
   // Six data fields & their titles
   #define SIX_FIELD_INDEX 0
   s_data_layer[0] = text_layer_create(GRect(0, 1, 71, 49));
-  s_data_small[0] = text_layer_create(GRect(0, 15, 71, 34));
+  s_data_small[0] = text_layer_create(GRect(0, 1, 71, 49));
   s_data_title[0] = text_layer_create(GRect(0, 49, 71, 15));
 
   s_data_layer[1] = text_layer_create(GRect(73, 1, 71, 49));
-  s_data_small[1] = text_layer_create(GRect(73, 15, 71, 34));
+  s_data_small[1] = text_layer_create(GRect(73, 1, 71, 49));
   s_data_title[1] = text_layer_create(GRect(73, 49, 71, 15));
   
   s_data_layer[2] = text_layer_create(GRect(0, 53, 71, 49));
-  s_data_small[2] = text_layer_create(GRect(0, 68, 71, 34));
+  s_data_small[2] = text_layer_create(GRect(0, 53, 71, 49));
   s_data_title[2] = text_layer_create(GRect(0, 102, 71, 14));
   
   s_data_layer[3] = text_layer_create(GRect(73, 53, 71, 49));
-  s_data_small[3] = text_layer_create(GRect(73, 68, 71, 34));
+  s_data_small[3] = text_layer_create(GRect(73, 53, 71, 49));
   s_data_title[3] = text_layer_create(GRect(73, 102, 71, 14));
   
-  s_data_layer[4] = text_layer_create(GRect(0, 106, 71, 49));
-  s_data_small[4] = text_layer_create(GRect(0, 121, 71, 34));
+  s_data_layer[4] = text_layer_create(GRect(0, 105, 71, 49));
+  s_data_small[4] = text_layer_create(GRect(0, 106, 71, 49));
   s_data_title[4] = text_layer_create(GRect(0, 154, 71, 15));
   
-  s_data_layer[5] = text_layer_create(GRect(73, 106, 71, 49));
-  s_data_small[5] = text_layer_create(GRect(73, 121, 71, 34));
+  s_data_layer[5] = text_layer_create(GRect(73, 105, 71, 49));
+  s_data_small[5] = text_layer_create(GRect(73, 106, 71, 49));
   s_data_title[5] = text_layer_create(GRect(73, 154, 71, 15));
   
   // Two data fields & their titles
   #define TWO_FIELD_INDEX 6
-  s_data_layer[6] = text_layer_create(GRect(0, 10, 144, 50));
-  s_data_small[6] = text_layer_create(GRect(0, 10, 144, 50)); // Plenty of space!
-  s_data_title[6] = text_layer_create(GRect(12, 61, 120, 28));
+  s_data_layer[6] = text_layer_create(GRect(0, 2, 144, 59));
+  s_data_small[6] = text_layer_create(GRect(0, 2, 144, 59)); // Plenty of space!
+  s_data_title[6] = text_layer_create(GRect(0, 64, 144, 28));
   
-  s_data_layer[7] = text_layer_create(GRect(0, 89, 144, 50));
-  s_data_small[7] = text_layer_create(GRect(0, 89, 144, 50));
-  s_data_title[7] = text_layer_create(GRect(12, 140, 120, 28));
+  s_data_layer[7] = text_layer_create(GRect(0, 79, 144, 59));
+  s_data_small[7] = text_layer_create(GRect(0, 79, 144, 59));
+  s_data_title[7] = text_layer_create(GRect(0, 140, 144, 28));
 
   
   // Four data fields & their titles
   #define FOUR_FIELD_INDEX 8
-  s_data_layer[8] = text_layer_create(GRect(0, 12, 71, 55));
-  s_data_small[8] = text_layer_create(GRect(0, 25, 71, 34));
+  s_data_layer[8] = text_layer_create(GRect(0, 8, 71, 61));
+  s_data_small[8] = text_layer_create(GRect(0, 8, 71, 61));
   s_data_title[8] = text_layer_create(GRect(0, 65, 71, 24));
-  s_data_layer[9] = text_layer_create(GRect(73, 13, 71, 55));
-  s_data_small[9] = text_layer_create(GRect(73, 25, 71, 34));
+  
+  s_data_layer[9] = text_layer_create(GRect(73, 8, 71, 61));
+  s_data_small[9] = text_layer_create(GRect(73, 8, 71, 61));
   s_data_title[9] = text_layer_create(GRect(73, 65, 71, 24));
- 
-  s_data_layer[10] = text_layer_create(GRect(0, 89, 71, 55));
-  s_data_small[10] = text_layer_create(GRect(0, 104, 71, 34));
+  
+  s_data_layer[10] = text_layer_create(GRect(0, 87, 71, 61));
+  s_data_small[10] = text_layer_create(GRect(0, 87, 71, 61));
   s_data_title[10] = text_layer_create(GRect(0, 144, 71, 24));
-  s_data_layer[11] = text_layer_create(GRect(73, 89, 71, 55));
-  s_data_small[11] = text_layer_create(GRect(73, 104, 71, 34));
+  
+  s_data_layer[11] = text_layer_create(GRect(73, 87, 71, 61));
+  s_data_small[11] = text_layer_create(GRect(73, 87, 71, 61));
   s_data_title[11] = text_layer_create(GRect(73, 144, 71, 24));
-
   
   // Top title
   #define TITLE_INDEX 12
@@ -212,16 +228,13 @@ static void main_window_load(Window *window) {
   
   // Set up the messgage layer
   messageLayer = text_layer_create(GRect(10,30,124,120));
-
-                                   
   text_layer_set_background_color(messageLayer, GColorClear);
   text_layer_set_text_color(messageLayer, GColorWhite);
   text_layer_set_text_alignment(messageLayer, GTextAlignmentCenter);
   text_layer_set_font(messageLayer, s_large_title_font);
   layer_add_child(window_get_root_layer(window), text_layer_get_layer(messageLayer)); 
   
-  
-  static Layer *dataLayer, *titleLayer;
+
   
   titleLayer = layer_create(GRect(0, 0, 144, 168));
   layer_insert_below_sibling(titleLayer, (Layer *)s_data_layer[TITLE_INDEX]);
@@ -235,31 +248,42 @@ static void main_window_load(Window *window) {
     text_layer_set_background_color(s_data_layer[i], GColorClear);
     text_layer_set_text_color(s_data_layer[i], GColorWhite);
     text_layer_set_text_alignment(s_data_layer[i], GTextAlignmentCenter);
-    text_layer_set_font(s_data_layer[i], s_data_font);     
+    // text_layer_set_font(s_data_layer[i], s_data_font);     
     layer_add_child(dataLayer, text_layer_get_layer(s_data_layer[i]));
     
     text_layer_set_background_color(s_data_small[i], GColorClear);
     text_layer_set_text_color(s_data_small[i], GColorWhite);
     text_layer_set_text_alignment(s_data_small[i], GTextAlignmentCenter);
-    text_layer_set_font(s_data_small[i], s_small_data_font);
+    // text_layer_set_font(s_data_small[i], s_small_data_font);
+    text_layer_set_overflow_mode(s_data_small[i], GTextOverflowModeTrailingEllipsis);
     layer_add_child(dataLayer, text_layer_get_layer(s_data_small[i]));
 
     text_layer_set_background_color(s_data_title[i], GColorClear);
     text_layer_set_text_color(s_data_title[i], GColorWhite);
     text_layer_set_text_alignment(s_data_title[i], GTextAlignmentCenter);
     
-    if (i<(TWO_FIELD_INDEX)) // Small title fonts on the 6 field layout
+    if (i<TWO_FIELD_INDEX) // Small title fonts on the 6 field layout
+      {
+      text_layer_set_font(s_data_layer[i], s_6_font);    
+      text_layer_set_font(s_data_small[i], s_6_font_small);    
       text_layer_set_font(s_data_title[i], s_title_font);
-    else if (i<FOUR_FIELD_INDEX)
+    }
+    else if (i<FOUR_FIELD_INDEX) // This is 2 fields
+      {
+      text_layer_set_font(s_data_layer[i], s_2_font); 
+      text_layer_set_font(s_data_small[i], s_2_font_small);   
       text_layer_set_font(s_data_title[i], s_large_title_font);
-    else //Large title font on the 2 & 4 field layout
-      text_layer_set_font(s_data_title[i], s_medium_title_font);
-   
-    //layer_insert_above_sibling(text_layer_get_layer(s_data_title[i]), text_layer_get_layer(s_data_layer[i])); 
-    layer_add_child(titleLayer, text_layer_get_layer(s_data_title[i]));
- 
-    //lastLayer = s_data_layer[i];
+    }
 
+    else // 4 field layout
+      {
+      text_layer_set_font(s_data_layer[i], s_4_font); 
+      text_layer_set_font(s_data_small[i], s_4_font_small);   
+      text_layer_set_font(s_data_title[i], s_medium_title_font);
+    }
+      
+   
+    layer_add_child(titleLayer, text_layer_get_layer(s_data_title[i]));
   }
   
 
@@ -285,16 +309,16 @@ static void main_window_unload(Window *window) {
   // Destroy TextLayer
   int i;
   for (i=0; i<TITLE_INDEX; i++)
-  {
-  text_layer_destroy(s_data_layer[i]);
-  text_layer_destroy(s_data_title[i]);
-//  if (i < TWO_FIELD_INDEX)
+    {
+    text_layer_destroy(s_data_layer[i]);
+    text_layer_destroy(s_data_title[i]);
     text_layer_destroy(s_data_small[i]);
   }
 
-  text_layer_destroy(s_data_layer[TITLE_INDEX]);
-  
-  simple_menu_layer_destroy(simple_menu_layer);
+  layer_destroy(dataLayer);
+  layer_destroy(titleLayer);
+  text_layer_destroy(messageLayer);
+  text_layer_destroy(s_data_layer[TITLE_INDEX]);  
 }
 
 
@@ -303,44 +327,97 @@ static void main_window_unload(Window *window) {
 //
 static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
   // Store incoming information
-
+  static char *layDecode[] = {"SPN", "SCB", "SMD",NULL,NULL,NULL,NULL,NULL,NULL,NULL,"PPN","PCB","PMD","PPN","PCB","PMD"};
   static char buffer[20][10];
+  static bool warnedLineBurn = false;
   
   // Read first item
   Tuple *t = dict_read_first(iterator);
 
   // For all items
   int j=0;
-  bool foundKey, negNum;
+  bool foundKey, negNum, useSmallFont;
+  
   
   while(t != NULL) {
+    useSmallFont = false;
     foundKey = true;
     // Which key was received?
+    APP_LOG(APP_LOG_LEVEL_INFO, "Key %d Value %d", (int)t->key, (int)t->value->int32);
     switch(t->key) {
+      
       case KEY_LAY_DIST:
-      case KEY_LAY_BURN:
       case KEY_LAY_TIME:
       case KEY_LINE_DIST:
-      case KEY_LINE_BURN:
       case KEY_LINE_ANGLE:
       case KEY_LINE_TIME:
       case KEY_SECS_TO_START:
-      case KEY_BOAT_SPEED:
-      snprintf(buffer[j], sizeof(buffer[j]),"%d", abs((int)t->value->int32));
+      case KEY_TARGET_ANGLE:
+      case KEY_P_ANGLE:
+      case KEY_TIME_TO_MARK:
+      case KEY_HEADING:
+      case KEY_ROUTE_NUMBER:
+      case KEY_LAST_TACK:
+      case KEY_TARGET_TACK:
       negNum = ((int)t->value->int32 < 0);
+      snprintf(buffer[j], sizeof(buffer[j]),"%d", abs((int)t->value->int32));
+      break;
+
+      case KEY_LINE_BURN:
+      case KEY_LAY_BURN:
+      negNum = ((int)t->value->int32 <= 0);
+      snprintf(buffer[j], sizeof(buffer[j]),"%d", abs((int)t->value->int32));
+      break;
       
-      font = s_data_font; // Preselect a numbers-only font
-  
-//      APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d Value %s", (int)t->key, (char *)buffer[j]);
+      case KEY_BOAT_SPEED_MARK:      
+      case KEY_BOAT_SPEED:
+      case KEY_TARGET_SPEED: 
+      snprintf(buffer[j], sizeof(buffer[j]),"%d.%d", abs((int)t->value->int32)/10, abs((int)t->value->int32) % 10);
+      negNum = ((int)t->value->int32 < 0);
       break;
+      
+      case KEY_MARK_LAY_DIST:
+      negNum = ((int)t->value->int32 < 0);
+      if (abs((int)t->value->int32) > 999)
+        {
+        float a, b, c;
+        a = t->value->int32;
+        b = a / 185.2;
+        //c = round(b);
+        if (b < 10)
+          snprintf(buffer[j], sizeof(buffer[j]), "%d.%d", (int)b/10, (int)b % 10);
+        else
+          snprintf(buffer[j], sizeof(buffer[j]), "-");
+        //APP_LOG(APP_LOG_LEVEL_INFO, "Key %s", buffer[j]);
+      }
+      else
+        snprintf(buffer[j], sizeof(buffer[j]), "%d", (int)t->value->int32);
+      break;
+      
       case KEY_LAY_SEL:
+      APP_LOG(APP_LOG_LEVEL_INFO, "Key %d Value %d", (int)t->key, (int)t->value->int32);
       negNum = false;
-      font = s_data_font_alpha; // Switch to a font that can display alpha
-      snprintf(buffer[j], sizeof(buffer[j]),"%s", t->value->cstring);
-      // APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d Value %s", (int)t->key, (char *)buffer[j]);
+      snprintf(buffer[j], sizeof(buffer[j]),"%s", layDecode[(int)t->value->int32]);
       break;
-    default:
-      // APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d not recognized!", (int)t->key);
+      
+      /* These are the turn style values - Rnn & Lnn */
+      case KEY_MARK_TURN:
+      case KEY_TACK_HEADER:
+      negNum = false;
+      if (t->value->int32 >= 0)
+        snprintf(buffer[j], sizeof(buffer[j]), "R%02d", (int)t->value->int32);
+      else
+        snprintf(buffer[j], sizeof(buffer[j]), "L%02d", -(int)(t->value->int32));
+      break;
+      
+      case KEY_CURRENT_MARK:
+      negNum = false;
+      snprintf(buffer[j], sizeof(buffer[j]), "%s", (char *)t->value->cstring);
+      useSmallFont = true; // Some letters are pretty wide!
+      break;
+      
+      default:
+       APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d not recognized!", (int)t->key);
       foundKey = false;
       break;
     }
@@ -351,13 +428,43 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
           {
           if (data_field_keys[screens[currentScreen].field_data_map[i]] == (int)t->key) // Did we find a match?
             {
-            text_layer_set_font(s_data_layer[screens[currentScreen].field_layer_map[i]], font);  //Set to the chosen (num/alpha) font)
-            if (strlen(buffer[j]) <= 2 || screens[currentScreen].num_fields == 2) // Short string, or wide fields available
+            if (t->key == KEY_LINE_BURN)
+              {
+              if (t->value->int32 < 10 && t->value->int32 >0)
+                {
+                vibes_double_pulse ();
+              }
+              else if (t->value->int32 <= 0)
+                {
+                if (!warnedLineBurn)
+                    {
+                    vibes_long_pulse();
+                    warnedLineBurn = true;
+                }
+              }
+              else
+                {
+                warnedLineBurn = false;
+              }
+            }
+                
+ 
+            if (useSmallFont == true || (screens[currentScreen].num_fields != 2 && strlen(buffer[j]) > 2))
+              {
+              if (strlen(buffer[j]) == 3 && buffer[j][1] == '.')
+                useSmallFont = false; /* Can squeeze a . into big fonts! */ 
+              else
+                useSmallFont = true;
+            }
+            else
+              useSmallFont = false;
+            if (!useSmallFont) //Big fonts in use
               {
               text_layer_set_text(s_data_small[screens[currentScreen].field_layer_map[i]], ""); //Blank the small font field in case
               text_layer_set_text(s_data_layer[screens[currentScreen].field_layer_map[i]], buffer[j]); //Set the regular font field
               if (negNum) // Did we get a negative number
                 {
+                // Small fields are reset here in case we just switched from small font -ve to large font -ve
                 text_layer_set_background_color(s_data_small[screens[currentScreen].field_layer_map[i]], GColorClear);
                 text_layer_set_text_color(s_data_small[screens[currentScreen].field_layer_map[i]], GColorWhite);
                 text_layer_set_background_color(s_data_layer[screens[currentScreen].field_layer_map[i]], GColorWhite);
@@ -370,7 +477,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
                 text_layer_set_text_color(s_data_small[screens[currentScreen].field_layer_map[i]], GColorWhite);
               }
             }
-            else // Long data >2 chars
+            else // Using Small Font Fields
               {
               text_layer_set_text(s_data_layer[screens[currentScreen].field_layer_map[i]], ""); // Blank normal font field & reset inverse in case
               text_layer_set_background_color(s_data_layer[screens[currentScreen].field_layer_map[i]], GColorClear);
@@ -412,24 +519,24 @@ static void inbox_dropped_callback(AppMessageResult reason, void *context) {
 
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
          // APP_LOG(APP_LOG_LEVEL_INFO, "SELECT click");
-if (configuring)
-    { // Set the current title back to normal
-    text_layer_set_background_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorClear);
-    text_layer_set_text_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorWhite);
+  if (configuring)
+      { // Set the current title back to normal
+      text_layer_set_background_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorBlack);
+      text_layer_set_text_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorWhite);
+    
+      configuring_field += 1; // Step to next field & wrap at the end
+    if (configuring_field == screens[currentScreen].num_fields)
+      configuring_field = 0;
   
-    configuring_field += 1; // Step to next field & wrap at the end
-  if (configuring_field == screens[currentScreen].num_fields)
-    configuring_field = 0;
-
-  // Invert colours on current field title
-    text_layer_set_background_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorWhite);
-    text_layer_set_text_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorBlack);
-
+    // Invert colours on current field title
+      text_layer_set_background_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorWhite);
+      text_layer_set_text_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorBlack);
+  
+    }
+  else {
+   
   }
-else {
- 
-}
-
+  
   
 }
 
@@ -467,7 +574,7 @@ static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
       screens[i].num_fields = 0;
     
     currentScreen = 0;
-    updatescreen(-2, "00");
+    updatescreen(-2, "");
   }
   else  // Step to next screen
     {
@@ -476,7 +583,7 @@ static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
   if (currentScreen <0)
     currentScreen = NUM_SCREENS - 1;
     } while (screens[currentScreen].num_fields == 0);
-    updatescreen(currentScreen,"00");
+    updatescreen(currentScreen,"");
   }
 }
 
@@ -497,7 +604,7 @@ static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
   {
     doubleClick = false;
     text_layer_set_text(messageLayer,"");  
-    updatescreen(currentScreen, "00");
+    updatescreen(currentScreen, "");
   }
   else { // Not configuring - just step to next screen
     do { // Search through screens to find the next one in use
@@ -505,7 +612,7 @@ static void down_click_handler(ClickRecognizerRef recognizer, void *context) {
   if (currentScreen == NUM_SCREENS)
     currentScreen = 0;
     } while (screens[currentScreen].num_fields == 0);
-    updatescreen(currentScreen,"00");
+    updatescreen(currentScreen,"");
   }
   
 }
@@ -527,9 +634,9 @@ static void long_select_handler(ClickRecognizerRef recognizer, void *context) {
     }
     else { // End configuring, set current title back to normal display
       configuring = 0;
-      text_layer_set_background_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorClear);
+      text_layer_set_background_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorBlack);
       text_layer_set_text_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorWhite);
-      updatescreen(currentScreen,"00"); // This should not be needed!
+      //updatescreen(currentScreen,""); // This should not be needed!
     }
 }
   
@@ -563,20 +670,13 @@ static void long_down_handler(ClickRecognizerRef recognizer, void *context) {
   if (configuring == 0) // Long down deletes the current screen so long as it's not the last one
   {
     int i;
-    int ok = 0;  //Always allow delete
+    int ok = 0;  //Always allow delete as long as there is at least one remaining screen
     
     for (i=0; i<NUM_SCREENS; i++)
       {
       if (screens[i].num_fields != 0)
         ok++;
     }
-    
-//      if (screens[i].num_fields == screens[currentScreen].num_fields && i != currentScreen &&
-//         screens[i].is_start == screens[currentScreen].is_start)
-//      {
-//      ok = true; // We found another one like the one being deleted - OK to delete
-//      break;
-//    }
     
             
   if (ok > 1) // OK to delete go find a new screen to display now
@@ -585,7 +685,7 @@ static void long_down_handler(ClickRecognizerRef recognizer, void *context) {
     for (i=0; i < NUM_SCREENS; i++)
       if (i != currentScreen && screens[i].num_fields != 0) // Avoid selecting the screen we are deleting & unused screens
         break;
-    updatescreen(i, "00");  // i is left set to the first in-use screen
+    updatescreen(i, "");  // i is left set to the first in-use screen
     screens[currentScreen].num_fields = 0;  // Take current screen out of use. Can't do this earlier or it breaks updatescreen()
     currentScreen = i;
   }
@@ -642,6 +742,9 @@ static void deinit() {
   window_destroy(s_main_window);
 }
 
+//
+// Main
+//
 int main(void) {
   int i;
   
@@ -668,7 +771,6 @@ int main(void) {
 //
 // Change screen modes if needed - blank out old values, show new
 //
-
 void updatescreen(int thisScreen, char *initialValue)
   {  
     static int lastScreen = -1;  // Remember where we came from 
@@ -701,7 +803,7 @@ if (thisScreen != -1) // -1 if there is no screen to go to -- just blanking out 
       {
       if (initialValue == NULL)
         initialValue = "00";
-      text_layer_set_font(s_data_layer[screens[thisScreen].field_layer_map[i]], s_data_font);  // Switch to numeric font
+ //     text_layer_set_font(s_data_layer[screens[thisScreen].field_layer_map[i]], s_data_font);  // Switch to numeric font
       text_layer_set_text(s_data_layer[screens[thisScreen].field_layer_map[i]], initialValue);
     }
     
@@ -712,6 +814,7 @@ if (thisScreen != -1) // -1 if there is no screen to go to -- just blanking out 
       text_layer_set_text(s_data_title[screens[thisScreen].field_layer_map[i]], data_titles[screens[thisScreen].field_data_map[i]]);
     }
   lastScreen = thisScreen;
+  
   static char buf[50];
   snprintf(buf, sizeof(buf), "StartLine    Screen %d", thisScreen + 1);
   text_layer_set_text(s_data_layer[TITLE_INDEX], buf);
