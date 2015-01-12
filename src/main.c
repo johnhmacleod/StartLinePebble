@@ -96,8 +96,9 @@ typedef struct
 } Screen;
 
 #define NUM_SCREENS 10
-
-static Screen screenDefault[3] = {
+#define THREE_FIELD_INDEX 12
+  
+static Screen screenDefault[4] = {
                                       {6,
                                       {0,1,2,3,4,5},
                                       {0,1,2,3,4,5},
@@ -114,6 +115,12 @@ static Screen screenDefault[3] = {
                                       {2,3},
                                       {6,7},
                                       {6,7},
+                                      true
+                                      },
+                                      {3,
+                                      {0,1},
+                                      {THREE_FIELD_INDEX, THREE_FIELD_INDEX+1, THREE_FIELD_INDEX+2},
+                                      {THREE_FIELD_INDEX, THREE_FIELD_INDEX+1, THREE_FIELD_INDEX+2},
                                       true
                                       }
                                     };
@@ -135,6 +142,12 @@ static Screen screens[NUM_SCREENS] = {
                                       {2,3},
                                       {6,7},
                                       {6,7},
+                                      true
+                                      },
+                                      {3,
+                                      {0,1,2},
+                                      {THREE_FIELD_INDEX, THREE_FIELD_INDEX+1, THREE_FIELD_INDEX+2},
+                                      {THREE_FIELD_INDEX, THREE_FIELD_INDEX+1, THREE_FIELD_INDEX+2},
                                       true
                                       }
                                     };  // Code relies on the rest of the array being zero to indicate screens not in use.
@@ -181,6 +194,7 @@ static void main_window_load(Window *window) {
   
   // Six data fields & their titles
   #define SIX_FIELD_INDEX 0
+  #define SIX_FIELD_MAX 5
   s_data_layer[0] = text_layer_create(GRect(0, 1, 71, 49));
   s_data_small[0] = text_layer_create(GRect(0, 1, 71, 49));
   s_data_title[0] = text_layer_create(GRect(0, 49, 71, 15));
@@ -207,6 +221,7 @@ static void main_window_load(Window *window) {
   
   // Two data fields & their titles
   #define TWO_FIELD_INDEX 6
+  #define TWO_FIELD_MAX 7
   s_data_layer[6] = text_layer_create(GRect(0, 2, 144, 59));
   s_data_small[6] = text_layer_create(GRect(0, 2, 144, 59)); // Plenty of space!
   s_data_title[6] = text_layer_create(GRect(0, 64, 144, 28));
@@ -218,6 +233,7 @@ static void main_window_load(Window *window) {
   
   // Four data fields & their titles
   #define FOUR_FIELD_INDEX 8
+  #define FOUR_FIELD_MAX 11
   s_data_layer[8] = text_layer_create(GRect(0, 8, 71, 61));
   s_data_small[8] = text_layer_create(GRect(0, 8, 71, 61));
   s_data_title[8] = text_layer_create(GRect(0, 65, 71, 24));
@@ -234,8 +250,24 @@ static void main_window_load(Window *window) {
   s_data_small[11] = text_layer_create(GRect(73, 87, 71, 61));
   s_data_title[11] = text_layer_create(GRect(73, 144, 71, 24));
   
+  // Three fields - One big, two small
+  //#define THREE_FIELD_INDEX 12
+  #define THREE_FIELD_MAX 14
+  s_data_layer[12] = text_layer_create(GRect(0, 12, 144, 59));
+  s_data_small[12] = text_layer_create(GRect(0, 12, 144, 59)); // Plenty of space!
+  s_data_title[12] = text_layer_create(GRect(0, 78, 144, 28));
+  
+  s_data_layer[13] = text_layer_create(GRect(0, 104, 71, 49));
+  s_data_small[13] = text_layer_create(GRect(0, 104, 71, 49));
+  s_data_title[13] = text_layer_create(GRect(0, 154, 71, 15));
+  
+  s_data_layer[14] = text_layer_create(GRect(73, 104, 71, 49));
+  s_data_small[14] = text_layer_create(GRect(73, 104, 71, 49));
+  s_data_title[14] = text_layer_create(GRect(73, 154, 71, 15));
+  
+  
   // Top title
-  #define TITLE_INDEX 12
+  #define TITLE_INDEX 15
   s_data_layer[TITLE_INDEX] = text_layer_create(GRect(0, 0, 144, 16));
   
   
@@ -269,14 +301,12 @@ static void main_window_load(Window *window) {
     {
     text_layer_set_background_color(s_data_layer[i], GColorClear);
     text_layer_set_text_color(s_data_layer[i], GColorWhite);
-    text_layer_set_text_alignment(s_data_layer[i], GTextAlignmentCenter);
-    // text_layer_set_font(s_data_layer[i], s_data_font);     
+    text_layer_set_text_alignment(s_data_layer[i], GTextAlignmentCenter);  
     layer_add_child(dataLayer, text_layer_get_layer(s_data_layer[i]));
     
     text_layer_set_background_color(s_data_small[i], GColorClear);
     text_layer_set_text_color(s_data_small[i], GColorWhite);
     text_layer_set_text_alignment(s_data_small[i], GTextAlignmentCenter);
-    // text_layer_set_font(s_data_small[i], s_small_data_font);
     text_layer_set_overflow_mode(s_data_small[i], GTextOverflowModeTrailingEllipsis);
     layer_add_child(dataLayer, text_layer_get_layer(s_data_small[i]));
 
@@ -284,26 +314,39 @@ static void main_window_load(Window *window) {
     text_layer_set_text_color(s_data_title[i], GColorWhite);
     text_layer_set_text_alignment(s_data_title[i], GTextAlignmentCenter);
     
-    if (i<TWO_FIELD_INDEX) // Small title fonts on the 6 field layout
+    if (i >= SIX_FIELD_INDEX && i <= SIX_FIELD_MAX) // Small title fonts on the 6 field layout
       {
       text_layer_set_font(s_data_layer[i], s_6_font);    
       text_layer_set_font(s_data_small[i], s_6_font_small);    
       text_layer_set_font(s_data_title[i], s_title_font);
     }
-    else if (i<FOUR_FIELD_INDEX) // This is 2 fields
+    else if (i >= TWO_FIELD_INDEX && i <= TWO_FIELD_MAX) // This is 2 fields
       {
       text_layer_set_font(s_data_layer[i], s_2_font); 
       text_layer_set_font(s_data_small[i], s_2_font_small);   
       text_layer_set_font(s_data_title[i], s_large_title_font);
     }
 
-    else // 4 field layout
+    else if (i >= FOUR_FIELD_INDEX && i <= FOUR_FIELD_MAX) // 4 field layout
       {
       text_layer_set_font(s_data_layer[i], s_4_font); 
       text_layer_set_font(s_data_small[i], s_4_font_small);   
       text_layer_set_font(s_data_title[i], s_medium_title_font);
     }
-      
+    else if (i >= THREE_FIELD_INDEX && i <= THREE_FIELD_MAX)
+      {
+      if (i == THREE_FIELD_INDEX) // First field is big
+        {
+        text_layer_set_font(s_data_layer[i], s_2_font); 
+        text_layer_set_font(s_data_small[i], s_2_font_small);   
+        text_layer_set_font(s_data_title[i], s_large_title_font);
+      } else
+        {
+        text_layer_set_font(s_data_layer[i], s_6_font);    
+        text_layer_set_font(s_data_small[i], s_6_font_small);    
+        text_layer_set_font(s_data_title[i], s_title_font);        
+      }
+    }      
    
     layer_add_child(titleLayer, text_layer_get_layer(s_data_title[i]));
   }
@@ -394,7 +437,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
       case KEY_LAY_BURN:
       case KEY_TIME_TO_MARK:
       tmp = abs((int)t->value->int32) ;
-      negNum = false;
+      negNum = ((int)t->value->int32 < 0);
       if (screens[currentScreen].num_fields == 2 || tmp < 600) // We have room for mins & seconds
         {
         snprintf(buffer[j], sizeof(buffer[j]),"%d:%02d", tmp / 60, tmp % 60);
@@ -651,7 +694,7 @@ static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
     text_layer_set_text(messageLayer,"");  
       
     int i;
-    for (i=0; i<3; i++) // Step through 3 default screens
+    for (i=0; i<4; i++) // Step through 4 default screens
       {
           screens[i].num_fields = screenDefault[i].num_fields;
           int j;
@@ -662,7 +705,7 @@ static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
             }
         screens[i].is_start = screens[i].is_start;
     }
-    for (i=3; i<NUM_SCREENS; i++)
+    for (i=4; i<NUM_SCREENS; i++)
       screens[i].num_fields = 0;
     
     currentScreen = 0;
