@@ -9,56 +9,8 @@
     "resources": {
         "media": [
             {
-                "file": "images/SL28.png",
-                "menuIcon": true,
-                "name": "SL_28",
-                "type": "png"
-            },
-            {
-                "characterRegex": "[0-9.A-Z:]",
-                "file": "fonts/PTN57F.ttf",
-                "name": "PTN_59",
-                "trackingAdjust": -2,
-                "type": "font"
-            },
-            {
-                "characterRegex": "[0-9.A-Z:]",
-                "file": "fonts/PTN57F.ttf",
-                "name": "PTN_47",
-                "trackingAdjust": -2,
-                "type": "font"
-            },
-            {
-                "characterRegex": "[0-9.A-Z:]",
-                "file": "fonts/PTN57F.ttf",
-                "name": "PTN_50",
-                "trackingAdjust": -3,
-                "type": "font"
-            },
-            {
-                "characterRegex": "[-0-9.A-Zms:]",
-                "file": "fonts/PTS75F.ttf",
-                "name": "PTB_59",
-                "trackingAdjust": -2,
-                "type": "font"
-            },
-            {
-                "characterRegex": "[-0-9.A-Zms:]",
-                "file": "fonts/PTS75F.ttf",
-                "name": "PTB_47",
-                "trackingAdjust": -2,
-                "type": "font"
-            },
-            {
-                "characterRegex": "[-0-9.A-Zms:]",
-                "file": "fonts/PTS75F.ttf",
-                "name": "PTB_50",
-                "trackingAdjust": -2,
-                "type": "font"
-            },
-            {
-                "file": "images/StartLine.png",
-                "name": "MENU_IMAGE",
+                "file": "images/background.png",
+                "name": "BACKGROUND_IMAGE",
                 "type": "png"
             },
             {
@@ -67,8 +19,42 @@
                 "type": "png"
             },
             {
-                "file": "images/background.png",
-                "name": "BACKGROUND_IMAGE",
+                "file": "images/StartLine.png",
+                "name": "MENU_IMAGE",
+                "type": "png"
+            },
+            {
+                "characterRegex": "[-0-9.A-Z:hms]",
+                "file": "fonts/PTN57F.ttf",
+                "name": "PTN_64",
+                "trackingAdjust": -2,
+                "type": "font"
+            },
+            {
+                "characterRegex": "[-0-9.A-Z:hms]",
+                "file": "fonts/PTN57F.ttf",
+                "name": "PTN_47",
+                "trackingAdjust": -3,
+                "type": "font"
+            },
+            {
+                "characterRegex": "[-0-9.A-Z:hms]",
+                "file": "fonts/PTN57F.ttf",
+                "name": "PTN_50",
+                "trackingAdjust": -3,
+                "type": "font"
+            },
+            {
+                "characterRegex": "[-0-9.A-Z:hms]",
+                "file": "fonts/PTN57F.ttf",
+                "name": "PTN_59",
+                "trackingAdjust": -2,
+                "type": "font"
+            },
+            {
+                "file": "images/SL28.png",
+                "menuIcon": true,
+                "name": "SL_28",
                 "type": "png"
             }
         ]
@@ -76,7 +62,7 @@
     "shortName": "StartLine",
     "uuid": "743c5eb7-77fb-4821-913a-5d855e2c3c84",
     "versionCode": 1,
-    "versionLabel": "1.4",
+    "versionLabel": "1.8",
     "watchapp": {
         "watchface": false
     }
