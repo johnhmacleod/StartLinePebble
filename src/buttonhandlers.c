@@ -1,6 +1,8 @@
 #include <pebble.h>
 #include "startline.h"
-#include "menu.h"
+#include "screens.h"
+  
+
 
   void doTitleInvert()
   {
@@ -24,27 +26,19 @@ void select_click_handler(ClickRecognizerRef recognizer, void *context) {
     if (messageClick && configuring)
     {
     screenMessage(""); // Check that configuring is not turned off in updatescreen
-    //text_layer_set_background_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorWhite);
-    //text_layer_set_text_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorBlack);
-  doTitleInvert();
+    doTitleInvert();
 
       return;
   }
   if (configuring)
       { // Set the current title back to normal
-//      text_layer_set_background_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorBlack);
-//      text_layer_set_text_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorWhite);
       layer_set_bounds(inverter_layer_get_layer(inverter), GRect(0,0,0,0));
-
     
-      configuring_field += 1; // Step to next field & wrap at the end
-    if (configuring_field == screens[currentScreen].num_fields)
-      configuring_field = 0;
+      configuring_field  = (1+configuring_field) % screens[currentScreen].num_fields;
+//    if (configuring_field == screens[currentScreen].num_fields)
+//      configuring_field = 0;
   
-    // Invert colours on current field title
-      //text_layer_set_background_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorWhite);
-      //text_layer_set_text_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorBlack);
-        doTitleInvert();
+    doTitleInvert();
 
     }
   else if (messageClick) 
@@ -52,8 +46,9 @@ void select_click_handler(ClickRecognizerRef recognizer, void *context) {
     doubleClick = false;
     screenMessage("");
   }
-//  else
-    // show_menu();
+  else {
+    show_screens();
+  }
 }
 
   
@@ -65,8 +60,6 @@ void up_click_handler(ClickRecognizerRef recognizer, void *context) {
   if (messageClick && configuring) // Displayed a message whilst configuring
     {
     screenMessage("");
-    //text_layer_set_background_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorWhite);
-    //text_layer_set_text_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorBlack);
     doTitleInvert();
 
   }
@@ -85,6 +78,7 @@ void up_click_handler(ClickRecognizerRef recognizer, void *context) {
     else if (doubleClick) //Confirming reset to default
     {
     screenMessage("");
+    updatescreen(-1, "");
     int i;
     for (i=0; i<4; i++) // Step through 4 default screens
       {
@@ -131,19 +125,22 @@ void down_click_handler(ClickRecognizerRef recognizer, void *context) {
   if (messageClick && configuring)
     {
     screenMessage(""); // Blank the message
-//    text_layer_set_background_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorWhite);
-//    text_layer_set_text_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorBlack);
     doTitleInvert();
   }
   if (configuring) {
+    int *fdm_cf = &(screens[currentScreen].field_data_map[configuring_field]);
     doDataRevert(configuring_field);
-    screens[currentScreen].field_data_map[configuring_field]--;
+    (*fdm_cf)--;
+    //screens[currentScreen].field_data_map[configuring_field]--;
 
-    if (screens[currentScreen].field_data_map[configuring_field] < 0)
-        screens[currentScreen].field_data_map[configuring_field] = num_keytitles -1;
-    text_layer_set_text(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], 
-                        keyTitles[screens[currentScreen].field_data_map[configuring_field]].title);
-
+    if ((*fdm_cf) < 0)
+      (*fdm_cf) = num_keytitles - 1;
+      text_layer_set_text(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], 
+                        keyTitles[*fdm_cf].title);
+        //screens[currentScreen].field_data_map[configuring_field] = num_keytitles -1;
+//    text_layer_set_text(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], 
+//                        keyTitles[screens[currentScreen].field_data_map[configuring_field]].title);
+//    screens[currentScreen].field_data_map[configuring_field] = fdm_cf;
     blankNormal(currentScreen, configuring_field);
   }
   else if (messageClick) // Cancelling reset to default
@@ -177,10 +174,7 @@ void long_select_handler(ClickRecognizerRef recognizer, void *context) {
       configuring_field = 0;
       doTitleInvert();
       
-      // Set current field title to inverse colours
-      //text_layer_set_background_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorWhite);
-      //text_layer_set_text_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorBlack);
-      
+  
     }
     else { // End configuring, set current title back to normal display
       int i;
@@ -194,7 +188,7 @@ void long_select_handler(ClickRecognizerRef recognizer, void *context) {
       }
       if (preStart && postStart)
         {
-        screenMessage("You may not mix pre and post start fields on one screen");
+        screenMessage("Cannot mix pre and post start fields on one screen");
       }
       else
         {
@@ -202,8 +196,6 @@ void long_select_handler(ClickRecognizerRef recognizer, void *context) {
       holdThisScreen = TRANSITION_IDLE;
       layer_set_bounds(inverter_layer_get_layer(inverter), GRect(0,0,0,0));
 
-//      text_layer_set_background_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorBlack);
-//      text_layer_set_text_color(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], GColorWhite);
       }
     }
 }
@@ -234,6 +226,7 @@ void long_up_handler(ClickRecognizerRef recognizer, void *context) {
     else
       vibes_long_pulse();
   } 
+
 }
 
 void long_down_handler(ClickRecognizerRef recognizer, void *context) {
@@ -262,7 +255,7 @@ void long_down_handler(ClickRecognizerRef recognizer, void *context) {
     else
       vibes_long_pulse();
 }
-  
+
 }
 
 
@@ -285,5 +278,5 @@ void select_multi_click_handler(ClickRecognizerRef recognizer, void *context) {
   screenMessage(STARTLINE_PEBBLE_VERSION);
   }
     
-  }
+  } 
 }

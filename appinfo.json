@@ -9,13 +9,8 @@
     "resources": {
         "media": [
             {
-                "file": "images/background.png",
-                "name": "BACKGROUND_IMAGE",
-                "type": "png"
-            },
-            {
-                "file": "images/bwarrow.png",
-                "name": "BW_ARROW",
+                "file": "images/bwarrow_right.png",
+                "name": "BWARROW",
                 "type": "png"
             },
             {
@@ -24,30 +19,30 @@
                 "type": "png"
             },
             {
-                "characterRegex": "[-0-9.A-Z:hms]",
+                "characterRegex": "[-0-9.A-Z:hms ]",
                 "file": "fonts/PTN57F.ttf",
-                "name": "PTN_64",
+                "name": "PTN_59",
                 "trackingAdjust": -2,
                 "type": "font"
             },
             {
-                "characterRegex": "[-0-9.A-Z:hms]",
-                "file": "fonts/PTN57F.ttf",
-                "name": "PTN_47",
-                "trackingAdjust": -3,
-                "type": "font"
-            },
-            {
-                "characterRegex": "[-0-9.A-Z:hms]",
+                "characterRegex": "[-0-9.A-Z:hms ]",
                 "file": "fonts/PTN57F.ttf",
                 "name": "PTN_50",
                 "trackingAdjust": -3,
                 "type": "font"
             },
             {
-                "characterRegex": "[-0-9.A-Z:hms]",
+                "characterRegex": "[-0-9.A-Z:hms ]",
                 "file": "fonts/PTN57F.ttf",
-                "name": "PTN_59",
+                "name": "PTN_47",
+                "trackingAdjust": -3,
+                "type": "font"
+            },
+            {
+                "characterRegex": "[-0-9.A-Z:hms ]",
+                "file": "fonts/PTN57F.ttf",
+                "name": "PTN_64",
                 "trackingAdjust": -2,
                 "type": "font"
             },
@@ -59,10 +54,11 @@
             }
         ]
     },
+    "sdkVersion": "2",
     "shortName": "StartLine",
     "uuid": "743c5eb7-77fb-4821-913a-5d855e2c3c84",
     "versionCode": 1,
-    "versionLabel": "1.8",
+    "versionLabel": "2.0",
     "watchapp": {
         "watchface": false
     }

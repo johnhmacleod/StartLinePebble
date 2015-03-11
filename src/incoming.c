@@ -2,14 +2,16 @@
 #include "startline.h"
 
 
+  static char buffer[15][16];
+  static char VMGtoWindBuffer[7];
+  static char tmpbuf[16];
+  static char tackLogBuffer[7][5];
 //
 // Handle incoming messages from phone
 //
 void inbox_received_callback(DictionaryIterator *iterator, void *context) {
   // Store incoming information
   static char *layDecode[] = {"SPN", "SCB", "SMD",NULL,NULL,NULL,NULL,NULL,NULL,NULL,"PPN","PCB","PMD","PPN","PCB","PMD"};
-  static char buffer[20][10];
-  static char tackLogBuffer[7][6];
   static int tackLog[7] = {0,0,0,0,0,0,0};
   static bool warnedLineBurn = false;
   static int currentState = -1;
@@ -17,14 +19,16 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
   bool earlyWarnDone = false;
   bool weAreRacing = false;
   bool doScreenTransition;
-  int j, tmp;
+  int j, tmp, ii;
   bool foundKey, negNum; 
   int startingScreen; // To remember which screen we were at when we arrived here so we don't loop forever looking for a screen with data on it
   int a;
   float b;
   static int flashFlag = 0;
-  
-  
+  char *sa, *sb;
+  bool fieldUpdated[6];
+  bool canDoVMG;
+  int twd, bs, hdg;
   
   if (doubleClick || messageClick)
     return;
@@ -32,14 +36,10 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
   
   if (flashFlag == 0) {
     layer_set_bounds(inverter_layer_get_layer(flash), GRect(0,0,0,0)); 
-//    text_layer_set_background_color(s_data_layer[TITLE_INDEX], GColorBlack);
-//    text_layer_set_text_color(s_data_layer[TITLE_INDEX], GColorWhite);
     flashFlag = 1;
       }
   else {
     layer_set_bounds(inverter_layer_get_layer(flash), GRect(0,0,10,10)); // Turn on the inverter layer
- //   text_layer_set_background_color(s_data_layer[TITLE_INDEX], GColorWhite);
- //   text_layer_set_text_color(s_data_layer[TITLE_INDEX], GColorBlack);
     flashFlag = 0;
   }
   
@@ -50,6 +50,10 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
   weAreRacing = false; // Assume we're not racing unless we receive a mark name
   do
     {
+    for (ii = 0; ii < screens[currentScreen].num_fields; ii++) {
+      fieldUpdated[ii] = false;
+    }
+    canDoVMG = false;
     doScreenTransition = false;
     weAreRacing = false;
     // Read first item
@@ -91,9 +95,7 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
       {
         snprintf(buffer[j], sizeof(buffer[j]),"%ds", tmp);
       }
-
       break;
-      
 
       case KEY_LAST_TACK:
       oldTack = thisTack; // Remember the tack from the last message 
@@ -109,18 +111,37 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
       negNum = false;
       snprintf(buffer[j], sizeof(buffer[j]),"%d", abs((int)t->value->int32));
       
+      case KEY_TWD:
+      if (t->key == KEY_TWD) {
+        canDoVMG = true;
+        twd = t->value->int32;
+      }
       case KEY_LAY_DIST:
       case KEY_LINE_DIST:
       case KEY_LINE_ANGLE:
       case KEY_TARGET_ANGLE:
       case KEY_MARK_BEARING:
       case KEY_HEADING_COG:
+      case KEY_HEADING:
+      if (t->key == KEY_HEADING)
+        hdg = t->value->int32;
+      case KEY_AWS:
+      case KEY_AWA:
+      case KEY_TWS:
+      case KEY_TWA:
+      case KEY_DEPTH:
+      case KEY_HEEL:
+      case KEY_CURRENT_DIR:
       negNum = ((int)t->value->int32 < 0);
       snprintf(buffer[j], sizeof(buffer[j]),"%d", abs((int)t->value->int32));
       break;
  
+      case KEY_BOAT_SOG:
       case KEY_BOAT_SPEED:
+      if (t->key == KEY_BOAT_SPEED)
+        bs = t->value->int32;
       case KEY_TARGET_SPEED: 
+      case KEY_CURRENT_SPEED:
       snprintf(buffer[j], sizeof(buffer[j]),"%d.%d", abs((int)t->value->int32)/10, abs((int)t->value->int32) % 10);
       negNum = ((int)t->value->int32 < 0);
       break;
@@ -152,10 +173,7 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
             d1 += 1;
             d2 = 0;
           }
-          if (d1 > 999) // Over 999 nm away - Only when we're flying!
-            snprintf(buffer[j], sizeof(buffer[j]), "%d", d1);
-          else
-            snprintf(buffer[j], sizeof(buffer[j]), "%d.%d", d1, d2);
+          snprintf(buffer[j], sizeof(buffer[j]), "%d.%d", d1, d2);
         }
         else
             {
@@ -178,18 +196,35 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
         buffer[j][0] = '\000';
       else
         {
-        if (t->value->int32 >= 0)
-          snprintf(buffer[j], sizeof(buffer[j]), "R%02d", (int)t->value->int32);
-        else
-          snprintf(buffer[j], sizeof(buffer[j]), "L%02d", -(int)(t->value->int32));
+//        if (t->value->int32 >= 0)
+          snprintf(buffer[j], sizeof(buffer[j]), "%c%02d", t->value->int32 >= 0 ? 'R' : 'L', abs((int)t->value->int32));
+//        else
+//          snprintf(buffer[j], sizeof(buffer[j]), "L%02d", -(int)(t->value->int32));
       }
       break;
       
       case KEY_CURRENT_MARK:
       weAreRacing = true; //This data only arrives once the start is over, we must be racing
       negNum = false;
-      snprintf(buffer[j], sizeof(buffer[j]), "%s", (char *)t->value->cstring);
-   
+      sa = t->value->cstring;
+      sb = tmpbuf;
+      while (*sa != '\000') {
+        *sb = *sa; // Copy the current char
+        if (*sb == ':' && *(sa+1) == ':') { // Found :: don't increment b so we ignore the extra :
+          sa++;
+          continue;
+        }
+        else if (*sb == ':' && *(sa+1) == '\000') { // End of string coming up & last char was : - don't increment b - it will be zapped
+          sa++;
+          continue;
+        }
+        else {
+          sa++;
+          sb++;
+        }
+      }
+      *sb = '\000';
+      snprintf(buffer[j], sizeof(buffer[j]), "%s", tmpbuf);
       break;
       
       case KEY_TACK_STATE:
@@ -216,6 +251,7 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
           else
             snprintf(tackLogBuffer[k], sizeof(tackLogBuffer[k]), "%d", tackLog[k]);
           setField(i, false, tackLogBuffer[k]);
+          fieldUpdated[i] = true;
           k++; // Step to the next tacklog entry
         }
       }
@@ -254,10 +290,10 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
           {
           if (weAreRacing && keyTitles[screens[currentScreen].field_data_map[i]].preStart) // We are racing & we have pre-start data displayed
               doScreenTransition = true; // Force a transition if we are racing with a screen displaying prestart data
-          
           if (keyTitles[screens[currentScreen].field_data_map[i]].key == (int)t->key) // Did we find a match?
             {
-            setField(i /* Field Index */ , negNum, buffer[j] );
+            setField(i, negNum, buffer[j] );
+            fieldUpdated[i] = true;
           }
         }
     // Use next buffer - seems that the buffer remains in use until the data actually appears on the screen
@@ -265,9 +301,7 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
       j++;
     }
     t = dict_read_next(iterator); // Look for next item
-    
   }
-    
     
   if (weAreRacing && doScreenTransition && holdThisScreen == 0) // We are racing, didn't find a match & don't need to hold this screen
     {
@@ -282,4 +316,26 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
     updatescreen(currentScreen, NULL); 
   }
   } while (weAreRacing && doScreenTransition && holdThisScreen == 0); // j is the index to the next available buffer.  If it is zero, we didn't find
+  
+  int VMGtoWind;
+  
+  if (canDoVMG) {
+    VMGtoWind = mycos(M_PI * ((hdg - twd) / 180.0)) * bs * 10;
+    snprintf(VMGtoWindBuffer, sizeof(VMGtoWindBuffer), "%d.%02d", abs(VMGtoWind)/ 100, abs(VMGtoWind)% 100);
+  }
+  
+  // Post process screen fields - VMGWind, blank non-updated fields etc.
+  for (ii = 0; ii < screens[currentScreen].num_fields; ii++) {
+    if (canDoVMG) {
+      if (keyTitles[screens[currentScreen].field_data_map[ii]].key == KEY_VMG_WIND) {
+        setField(ii, VMGtoWind < 0, VMGtoWindBuffer);  
+        fieldUpdated[ii] = true;
+      }
+    }
+    if (!fieldUpdated[ii])
+      {
+      setField(ii, false, ""); // If a field has not been updated, blank it out - it will be mapped to the wrong buffer[] element
+    }
+  }
+  
 }

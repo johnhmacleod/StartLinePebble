@@ -7,7 +7,7 @@
 
 
 Window *s_main_window;
-TextLayer *s_data_layer[20];
+TextLayer *s_data_layer[16];
 InverterLayer *inverter; //Used for title inversion
 InverterLayer *dataInverter[6]; // Used for negative data
 
@@ -44,21 +44,34 @@ keyTitle keyTitles[] = {
 {KEY_LINE_ANGLE, "Line Angle", true, false},
 {KEY_SECS_TO_START, "To Start", true, false},
 {KEY_LAY_SEL, "Lay Line", true, false},
-{KEY_TARGET_SPEED,"Tgt Speed", false, false},
-{KEY_TARGET_ANGLE,"Tgt Angle", true, false},
-{KEY_BOAT_SPEED,"Boat Spd", false, false},
+{KEY_TARGET_SPEED,"Tgt Speed", false, false}, //No
+{KEY_TARGET_ANGLE,"Tgt Angle", true, false}, //No
+{KEY_BOAT_SOG,"SOG", false, false},
 {KEY_MARK_TURN,"TURN", false, true},
 {KEY_MARK_LAY_DIST,"MkLay Dst", false, true},
 {KEY_HEADING_COG,"COG", false, true},
 {KEY_TIME_TO_MARK, "Mins 2 Mk", false, true},
 {KEY_TACK_HEADER,"Tack Hdr" , false, true},
-{KEY_MARK_BEARING, "Mk Bearng", false, true},
+{KEY_MARK_BEARING, "Mk Bearng", false, true}, //No
 {KEY_CURRENT_MARK, "Mark", false, true},
 {KEY_LAST_TACK,"Lst Tack", false, true},
-{KEY_TARGET_TACK, "Tgt Tack", false, true},
+{KEY_TARGET_TACK, "Tgt Tack", false, true}, //No
 {KEY_MARK_DIST, "Dist 2 Mk", false, true},
 {KEY_TACK_STATE, "Tack State", false, true},
 {KEY_TACK_LOG, "Tack Log", false, true},
+  // New fields
+{KEY_AWS, "AWS", false, true},
+{KEY_AWA, "AWA", false, true},
+{KEY_TWS, "TWS", false, true},
+{KEY_TWA, "TWA", false, true},
+{KEY_TWD, "TWD", false, true},
+{KEY_DEPTH, "Depth", false, true},
+{KEY_HEEL, "Heel", false, true},
+{KEY_CURRENT_SPEED, "Crnt Spd", false, true},
+{KEY_CURRENT_DIR, "Crnt Dir", false, true},
+{KEY_BOAT_SPEED, "Boat Spd", false, true},
+{KEY_VMG_WIND, "VMG Wind", false, true},
+//{KEY_VMG_WIND, "VMG Wind", false, true},
 };
  
 int num_keytitles = sizeof(keyTitles) / sizeof(keyTitles[0]);
@@ -122,8 +135,8 @@ Screen screens[NUM_SCREENS] = {
 static GFont s_2_font, s_title_font, s_4_font, s_3_font,
               s_6_font, s_medium_title_font, s_large_title_font;
 
-static BitmapLayer *s_background_layer, *s_arrow_layer;
-static GBitmap *s_background_bitmap, *s_arrow_bitmap;
+//static BitmapLayer *s_background_layer, *s_arrow_layer;
+//static GBitmap *s_background_bitmap, *s_arrow_bitmap;
 
 InverterLayer *inverter;
 InverterLayer *flash;
@@ -160,13 +173,6 @@ static void main_window_load(Window *window) {
   s_large_title_font = fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
   s_medium_title_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
 
-  
-  //Create GBitmap, then set to created BitmapLayer
-  s_background_bitmap = gbitmap_create_with_resource(RESOURCE_ID_BACKGROUND_IMAGE);
-  s_background_layer = bitmap_layer_create(GRect(0, 0, 144, 168));
-  bitmap_layer_set_bitmap(s_background_layer, s_background_bitmap);
-  layer_add_child(window_get_root_layer(window), bitmap_layer_get_layer(s_background_layer));
-  
   inverter = inverter_layer_create(GRect(0,0,144,168));
   layer_set_bounds(inverter_layer_get_layer(inverter),GRectZero);
   
@@ -204,38 +210,47 @@ static void main_window_load(Window *window) {
   // Two data fields & their titles
   #define TWO_FIELD_INDEX 6
   #define TWO_FIELD_MAX 7
-  s_data_layer[6] = text_layer_create(GRect(0, 2, 144, 59));
+  s_data_layer[6] = text_layer_create(GRect(0, 2, 288, 59));
+  layer_set_frame((Layer *) s_data_layer[6], GRect(0, 2, 144, 59));
   s_data_title[6] = text_layer_create(GRect(0, 64, 144, 28));
   
-  s_data_layer[7] = text_layer_create(GRect(0, 79, 144, 59));
+  s_data_layer[7] = text_layer_create(GRect(0, 79, 288, 59));
+  layer_set_frame((Layer *) s_data_layer[7], GRect(0, 79, 144, 59));
   s_data_title[7] = text_layer_create(GRect(0, 140, 144, 28));
 
   
   // Four data fields & their titles
   #define FOUR_FIELD_INDEX 8
   #define FOUR_FIELD_MAX 11
-  s_data_layer[8] = text_layer_create(GRect(0, 12, 71, 51));
+  s_data_layer[8] = text_layer_create(GRect(0, 12, 142, 51));
+  layer_set_frame((Layer *) s_data_layer[8], GRect(0, 12, 71, 51));
   s_data_title[8] = text_layer_create(GRect(0, 65, 71, 24));
   
   s_data_layer[9] = text_layer_create(GRect(73, 12, 71, 51));
   s_data_title[9] = text_layer_create(GRect(73, 65, 71, 24));
   
-  s_data_layer[10] = text_layer_create(GRect(0, 91, 71, 51));
+  s_data_layer[10] = text_layer_create(GRect(0, 91, 142, 51));
+  layer_set_frame((Layer *) s_data_layer[10], GRect(0, 91, 71, 51));
   s_data_title[10] = text_layer_create(GRect(0, 144, 71, 24));
   
-  s_data_layer[11] = text_layer_create(GRect(73, 91, 71, 51));
+  s_data_layer[11] = text_layer_create(GRect(73, 91,  71, 51));
   s_data_title[11] = text_layer_create(GRect(73, 144, 71, 24));
   
   // Three fields - One big, two small
   //#define THREE_FIELD_INDEX 12
   #define THREE_FIELD_MAX 14
-  s_data_layer[12] = text_layer_create(GRect(0, 10, 144, 65));
+  s_data_layer[12] = text_layer_create(GRect(0, 10, 432, 65));
+  layer_set_frame((Layer *) s_data_layer[12], GRect(0, 10, 144, 65));
   s_data_title[12] = text_layer_create(GRect(0, 75, 144, 28));
 
-  s_data_layer[13] = text_layer_create(GRect(0, 91, 71, 51));
+  s_data_layer[13] = text_layer_create(GRect(0, 91, 150, 51));
+  layer_set_frame((Layer *) s_data_layer[13], GRect(0, 91, 71, 51));
   s_data_title[13] = text_layer_create(GRect(0, 144, 71, 24));
   
-  s_data_layer[14] = text_layer_create(GRect(73, 91, 71, 51));
+  
+  //s_data_layer[14] = text_layer_create(GRect(73, 91, 142, 51));
+  //layer_set_frame((Layer *) s_data_layer[14], GRect(73, 91, 71, 51));
+  s_data_layer[14] = text_layer_create(GRect(73, 91,  71, 51));
   s_data_title[14] = text_layer_create(GRect(73, 144, 71, 24));
   
   
@@ -251,7 +266,8 @@ static void main_window_load(Window *window) {
     text_layer_set_text(s_data_layer[TITLE_INDEX], "StartLine");
     text_layer_set_font(s_data_layer[TITLE_INDEX], s_title_font);
     layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_data_layer[TITLE_INDEX])); 
-  
+ 
+  window_set_background_color(window, GColorBlack);
   // Set up the messgage layer
   messageLayer = text_layer_create(GRect(10,30,124,120));
   text_layer_set_background_color(messageLayer, GColorClear);
@@ -275,7 +291,8 @@ static void main_window_load(Window *window) {
     {
     text_layer_set_background_color(s_data_layer[i], GColorClear);
     text_layer_set_text_color(s_data_layer[i], GColorWhite);
-    text_layer_set_text_alignment(s_data_layer[i], GTextAlignmentCenter);  
+    text_layer_set_text_alignment(s_data_layer[i], GTextAlignmentCenter);
+    text_layer_set_overflow_mode(s_data_layer[i], GTextOverflowModeWordWrap);
     layer_add_child(dataLayer, text_layer_get_layer(s_data_layer[i]));
     text_layer_set_background_color(s_data_title[i], GColorClear);
     text_layer_set_text_color(s_data_title[i], GColorWhite);
@@ -359,15 +376,6 @@ void screenMessage(char *message)
 }
 
 static void main_window_unload(Window *window) {
-  //Destroy GBitmap
-  gbitmap_destroy(s_background_bitmap);
-  gbitmap_destroy(s_arrow_bitmap);
-  
-  //Destroy BitmapLayer
-  bitmap_layer_destroy(s_background_layer);
-  bitmap_layer_destroy(s_arrow_layer);
-  
-  // Destroy TextLayer
   int i;
   for (i=0; i<TITLE_INDEX; i++)
     {
@@ -393,22 +401,95 @@ static void main_window_unload(Window *window) {
   fonts_unload_custom_font(s_6_font);
 }
 
+
+void on_animation_stopped(Animation *anim, bool finished, void *context)
+{
+    //Free the memoery used by the Animation
+    property_animation_destroy((PropertyAnimation*) anim);
+}
+ 
+void animate_layer(PropertyAnimation **anim, Layer *layer, GRect *start, GRect *finish, int duration, int delay)
+{
+     
+    //Declare animation      
+    *anim = property_animation_create_layer_frame(layer, start, finish);
+ 
+    //Set characteristics
+    animation_set_duration((Animation*) *anim, duration);
+    animation_set_delay((Animation*) *anim, delay);
+ 
+    //Set stopped handler to free memory
+    AnimationHandlers handlers = {
+        //The reference to the stopped handler is the only one in the array
+        .stopped = (AnimationStoppedHandler) on_animation_stopped
+    };
+    animation_set_handlers((Animation*) *anim, handlers, NULL);
+ 
+    //Start animation!
+    animation_schedule((Animation*) *anim);
+}
+
 // setField displays some data in a field & handles the reverse font
 
 void setField(int i /* Field Index */,  bool negNum, char* value)
   {
-  text_layer_set_text(s_data_layer[screens[currentScreen].field_layer_map[i]], value); //Set the regular font field
+  static PropertyAnimation *pa1[6] = {NULL}, *pa2[6] = {NULL}; //Arrays to cope with 6 fields
+    {
+    static GSize textContent;
+    static GRect gfrom, gto, gframe;
+
+    text_layer_set_text_alignment(s_data_layer[screens[currentScreen].field_layer_map[i]], GTextAlignmentLeft);
+    text_layer_set_text(s_data_layer[screens[currentScreen].field_layer_map[i]], value); // This line only
+    textContent = text_layer_get_content_size(s_data_layer[screens[currentScreen].field_layer_map[i]]);
+    gfrom = layer_get_bounds((Layer *)s_data_layer[screens[currentScreen].field_layer_map[i]]);
+    gframe = layer_get_frame((Layer *)s_data_layer[screens[currentScreen].field_layer_map[i]]);
+    
+    // APP_LOG(APP_LOG_LEVEL_INFO, "gframe.size.w=%d textContent.w=%d i=%d", gframe.size.w, textContent.w, i);
+    if (textContent.w > gframe.size.w) // Overflowed
+      {
+      // APP_LOG(APP_LOG_LEVEL_INFO, "setfield11 value=%s", value);
+      if ( (pa1[i] == NULL || !animation_is_scheduled((Animation*)pa1[i])) 
+          && (pa2[i] == NULL || !animation_is_scheduled((Animation*) pa2[i]))) // We are not already animating
+        {
+        // APP_LOG(APP_LOG_LEVEL_INFO, "setField 10");
+        gto = gfrom;
+        gfrom.origin.x = 0;
+        gto.origin.x = (gframe.size.w - textContent.w)/2; //Work out har far left to move animate the text
+        // APP_LOG(APP_LOG_LEVEL_INFO, "setField11 gfrom.x=%d gfrom.y=%d", gfrom.origin.x, gfrom.origin.y);
+        // APP_LOG(APP_LOG_LEVEL_INFO, "setField11 gto.x=%d gto.y=%d", gto.origin.x, gto.origin.y);
+        int tim = (int)(-2000.0 * ((float)gto.origin.x) / 20.0);
+        animate_layer_bounds(&pa1[i], (Layer *)s_data_layer[screens[currentScreen].field_layer_map[i]], &gfrom, &gto, tim, 0);
+        animate_layer_bounds(&pa2[i], (Layer *)s_data_layer[screens[currentScreen].field_layer_map[i]], &gto, &gfrom, tim, tim);
+        }
+      else
+        {
+        //APP_LOG(APP_LOG_LEVEL_INFO, "Already scheduled screen=%d i=%d %d %d %d %d", currentScreen, i, (int)pa1[i], animation_is_scheduled((Animation*)pa1[i]), (int)pa2[i], animation_is_scheduled((Animation*)pa2[i]) );
+        text_layer_set_text(s_data_layer[screens[currentScreen].field_layer_map[i]], value); // Animation running - just set the text
+      }
+    }
+    else // We need to redraw the text centred in the reset bounds
+      {
+      // APP_LOG(APP_LOG_LEVEL_INFO, "setfield11 value=%s", value);
+      GRect bF = layer_get_bounds((Layer *)s_data_layer[screens[currentScreen].field_layer_map[i]]);
+      GRect fF = layer_get_frame((Layer *)s_data_layer[screens[currentScreen].field_layer_map[i]]);
+      if (bF.size.w != fF.size.w) // is there extra space?
+        {
+        bF.origin.x = -(bF.size.w / 2 - fF.size.w / 2) /2;
+        // APP_LOG(APP_LOG_LEVEL_INFO, "origin.x =%d", bF.origin.x);
+        layer_set_bounds((Layer *)s_data_layer[screens[currentScreen].field_layer_map[i]], bF); // Centre the Bounds below the Frame
+      }
+      text_layer_set_text_alignment(s_data_layer[screens[currentScreen].field_layer_map[i]], GTextAlignmentCenter); //Should be Center but need to work out how!
+      text_layer_set_text(s_data_layer[screens[currentScreen].field_layer_map[i]], value); // This line only
+    }
+    
+  }
   if (negNum) // Did we get a negative number
   {
     doDataInvert(i);
-//    text_layer_set_background_color(s_data_layer[screens[currentScreen].field_layer_map[i]], GColorWhite);
-//    text_layer_set_text_color(s_data_layer[screens[currentScreen].field_layer_map[i]], GColorBlack);
   } 
   else // No, positive number
   {
     doDataRevert(i);
-//    text_layer_set_background_color(s_data_layer[screens[currentScreen].field_layer_map[i]], GColorClear);
-//    text_layer_set_text_color(s_data_layer[screens[currentScreen].field_layer_map[i]], GColorWhite);
   }
 }
 
@@ -477,7 +558,7 @@ static void init() {
   app_message_register_inbox_received(inbox_received_callback);
   app_message_register_inbox_dropped(inbox_dropped_callback);
   
-   APP_LOG(APP_LOG_LEVEL_INFO, "Inbox: %d OutBox %d", (int)app_message_inbox_size_maximum(),(int)app_message_outbox_size_maximum());
+   //APP_LOG(APP_LOG_LEVEL_INFO, "Inbox: %d OutBox %d", (int)app_message_inbox_size_maximum(),(int)app_message_outbox_size_maximum());
   
   // Open AppMessage
   app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
@@ -522,6 +603,10 @@ void updatescreen(int thisScreen, char *initialValue)
   {  
     static int lastScreen = -1;  // Remember where we came from 
     int i;
+// APP_LOG(APP_LOG_LEVEL_DEBUG, "updatescreen free=%d", (int)heap_bytes_free()); 
+//  for (int xx = -360; xx <= 360; xx+=5)
+//    APP_LOG(APP_LOG_LEVEL_DEBUG, "x=%d  cos(x)=%d 5.4*cos(x)=%d.%02d", xx, 
+//            (int)(1000*mycos(xx/180.0 * M_PI)), abs((int)(5.4 * mycos(xx/180.0 * M_PI))), abs((int)(540 * mycos(xx/180.0 * M_PI))%100));
   if (thisScreen == -2) //Act as if we are starting from scratch -- there is no last screen
     {
     lastScreen = -1;
@@ -545,7 +630,8 @@ if (thisScreen != -1) // -1 if there is no screen to go to -- just blanking out 
     for (i=0; i<screens[thisScreen].num_fields; i++) // For now - put something in the fields
       {
       if (initialValue != NULL)
-        text_layer_set_text(s_data_layer[screens[thisScreen].field_layer_map[i]], initialValue);
+        //text_layer_set_text(s_data_layer[screens[thisScreen].field_layer_map[i]], initialValue);
+        setField(i, false, initialValue);
     }
     
     // Set up titles
