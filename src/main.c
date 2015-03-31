@@ -3,6 +3,8 @@
 #include "startline.h"
 
 
+GBitmap *s_res_padlock;
+BitmapLayer *s_padlockLayer;
 
 
 
@@ -29,11 +31,8 @@ bool messageClick = false;
 // This structure maps the KEY values to the titles used on the screen.  
 // The field_data_map array contains an index into this array so we know what data to display, so if you rearrange the order here, all stored field mappings
 // will be messed up!  Always add new items to the end.
-  
+// Only add items to the end of this array
 
-
-
-//Only add items to the end of this array
 keyTitle keyTitles[] = {
 {KEY_LAY_BURN,"Lay Burn", true, false},
 {KEY_LAY_DIST,"Lay Dist", true, false},
@@ -59,7 +58,6 @@ keyTitle keyTitles[] = {
 {KEY_MARK_DIST, "Dist 2 Mk", false, true},
 {KEY_TACK_STATE, "Tack State", false, true},
 {KEY_TACK_LOG, "Tack Log", false, true},
-  // New fields
 {KEY_AWS, "AWS", false, true},
 {KEY_AWA, "AWA", false, true},
 {KEY_TWS, "TWS", false, true},
@@ -71,7 +69,6 @@ keyTitle keyTitles[] = {
 {KEY_CURRENT_DIR, "Crnt Dir", false, true},
 {KEY_BOAT_SPEED, "Boat Spd", false, true},
 {KEY_VMG_WIND, "VMG Wind", false, true},
-//{KEY_VMG_WIND, "VMG Wind", false, true},
 };
  
 int num_keytitles = sizeof(keyTitles) / sizeof(keyTitles[0]);
@@ -98,7 +95,7 @@ Screen screenDefault[4] = {
                                       true
                                       },
                                       {3,
-                                      {0,1},
+                                      {18,11,12},
                                       {THREE_FIELD_INDEX, THREE_FIELD_INDEX+1, THREE_FIELD_INDEX+2},
                                       {THREE_FIELD_INDEX, THREE_FIELD_INDEX+1, THREE_FIELD_INDEX+2},
                                       true
@@ -176,7 +173,7 @@ static void main_window_load(Window *window) {
   inverter = inverter_layer_create(GRect(0,0,144,168));
   layer_set_bounds(inverter_layer_get_layer(inverter),GRectZero);
   
-  flash = inverter_layer_create(GRect(0,0,10,10));
+  flash = inverter_layer_create(GRect(2,7,7,7));
   
   int jj;
   for (jj = 0; jj < 6; jj++) {
@@ -210,12 +207,12 @@ static void main_window_load(Window *window) {
   // Two data fields & their titles
   #define TWO_FIELD_INDEX 6
   #define TWO_FIELD_MAX 7
-  s_data_layer[6] = text_layer_create(GRect(0, 2, 288, 59));
-  layer_set_frame((Layer *) s_data_layer[6], GRect(0, 2, 144, 59));
+  s_data_layer[6] = text_layer_create(GRect(0, 2, 288, 60));
+  layer_set_frame((Layer *) s_data_layer[6], GRect(0, 2, 144, 60));
   s_data_title[6] = text_layer_create(GRect(0, 64, 144, 28));
   
-  s_data_layer[7] = text_layer_create(GRect(0, 79, 288, 59));
-  layer_set_frame((Layer *) s_data_layer[7], GRect(0, 79, 144, 59));
+  s_data_layer[7] = text_layer_create(GRect(0, 79, 288, 60));
+  layer_set_frame((Layer *) s_data_layer[7], GRect(0, 79, 144, 60));
   s_data_title[7] = text_layer_create(GRect(0, 140, 144, 28));
 
   
@@ -289,11 +286,16 @@ static void main_window_load(Window *window) {
   int i;
   for (i =0; i < TITLE_INDEX; i++)
     {
+    //Data
+
     text_layer_set_background_color(s_data_layer[i], GColorClear);
     text_layer_set_text_color(s_data_layer[i], GColorWhite);
     text_layer_set_text_alignment(s_data_layer[i], GTextAlignmentCenter);
     text_layer_set_overflow_mode(s_data_layer[i], GTextOverflowModeWordWrap);
     layer_add_child(dataLayer, text_layer_get_layer(s_data_layer[i]));
+    
+    //Title
+
     text_layer_set_background_color(s_data_title[i], GColorClear);
     text_layer_set_text_color(s_data_title[i], GColorWhite);
     text_layer_set_text_alignment(s_data_title[i], GTextAlignmentCenter);
@@ -347,6 +349,13 @@ static void main_window_load(Window *window) {
   for (currentScreen = 0; screens[currentScreen].num_fields == 0; currentScreen++)
     ;
 
+  // Add the padlock icon - steals the rest of my heap!!
+  s_padlockLayer = bitmap_layer_create(GRect(133, 3, 8, 11));
+  s_res_padlock = gbitmap_create_with_resource(RESOURCE_ID_PADLOCK);
+  bitmap_layer_set_bitmap(s_padlockLayer, s_res_padlock);
+  layer_add_child(window_get_root_layer(window), (Layer *)s_padlockLayer);
+  layer_set_hidden((Layer *)s_padlockLayer, configLock == 1);
+  
   // And make it the current screen
   updatescreen(currentScreen,"00");
 }
@@ -391,6 +400,9 @@ static void main_window_unload(Window *window) {
   inverter_layer_destroy(inverter);
   inverter_layer_destroy(flash);
   
+  bitmap_layer_destroy(s_padlockLayer);
+  gbitmap_destroy(s_res_padlock);
+  
   int jj;
   for (jj = 0; jj < 6; jj++) {
     inverter_layer_destroy(dataInverter[jj]);
@@ -401,7 +413,7 @@ static void main_window_unload(Window *window) {
   fonts_unload_custom_font(s_6_font);
 }
 
-
+/*
 void on_animation_stopped(Animation *anim, bool finished, void *context)
 {
     //Free the memoery used by the Animation
@@ -428,6 +440,7 @@ void animate_layer(PropertyAnimation **anim, Layer *layer, GRect *start, GRect *
     //Start animation!
     animation_schedule((Animation*) *anim);
 }
+*/
 
 // setField displays some data in a field & handles the reverse font
 
@@ -437,12 +450,12 @@ void setField(int i /* Field Index */,  bool negNum, char* value)
     {
     static GSize textContent;
     static GRect gfrom, gto, gframe;
-
-    text_layer_set_text_alignment(s_data_layer[screens[currentScreen].field_layer_map[i]], GTextAlignmentLeft);
-    text_layer_set_text(s_data_layer[screens[currentScreen].field_layer_map[i]], value); // This line only
-    textContent = text_layer_get_content_size(s_data_layer[screens[currentScreen].field_layer_map[i]]);
-    gfrom = layer_get_bounds((Layer *)s_data_layer[screens[currentScreen].field_layer_map[i]]);
-    gframe = layer_get_frame((Layer *)s_data_layer[screens[currentScreen].field_layer_map[i]]);
+    TextLayer *flm = s_data_layer[screens[currentScreen].field_layer_map[i]];
+    text_layer_set_text_alignment(flm, GTextAlignmentLeft);
+    text_layer_set_text(flm, value); // This line only
+    textContent = text_layer_get_content_size(flm);
+    gfrom = layer_get_bounds((Layer *)flm);
+    gframe = layer_get_frame((Layer *)flm);
     
     // APP_LOG(APP_LOG_LEVEL_INFO, "gframe.size.w=%d textContent.w=%d i=%d", gframe.size.w, textContent.w, i);
     if (textContent.w > gframe.size.w) // Overflowed
@@ -458,28 +471,28 @@ void setField(int i /* Field Index */,  bool negNum, char* value)
         // APP_LOG(APP_LOG_LEVEL_INFO, "setField11 gfrom.x=%d gfrom.y=%d", gfrom.origin.x, gfrom.origin.y);
         // APP_LOG(APP_LOG_LEVEL_INFO, "setField11 gto.x=%d gto.y=%d", gto.origin.x, gto.origin.y);
         int tim = (int)(-2000.0 * ((float)gto.origin.x) / 20.0);
-        animate_layer_bounds(&pa1[i], (Layer *)s_data_layer[screens[currentScreen].field_layer_map[i]], &gfrom, &gto, tim, 0);
-        animate_layer_bounds(&pa2[i], (Layer *)s_data_layer[screens[currentScreen].field_layer_map[i]], &gto, &gfrom, tim, tim);
+        animate_layer_bounds(&pa1[i], (Layer *)flm, &gfrom, &gto, tim, 0);
+        animate_layer_bounds(&pa2[i], (Layer *)flm, &gto, &gfrom, tim, tim);
         }
       else
         {
         //APP_LOG(APP_LOG_LEVEL_INFO, "Already scheduled screen=%d i=%d %d %d %d %d", currentScreen, i, (int)pa1[i], animation_is_scheduled((Animation*)pa1[i]), (int)pa2[i], animation_is_scheduled((Animation*)pa2[i]) );
-        text_layer_set_text(s_data_layer[screens[currentScreen].field_layer_map[i]], value); // Animation running - just set the text
+        text_layer_set_text(flm, value); // Animation running - just set the text
       }
     }
     else // We need to redraw the text centred in the reset bounds
       {
       // APP_LOG(APP_LOG_LEVEL_INFO, "setfield11 value=%s", value);
-      GRect bF = layer_get_bounds((Layer *)s_data_layer[screens[currentScreen].field_layer_map[i]]);
-      GRect fF = layer_get_frame((Layer *)s_data_layer[screens[currentScreen].field_layer_map[i]]);
+      GRect bF = layer_get_bounds((Layer *)flm);
+      GRect fF = layer_get_frame((Layer *)flm);
       if (bF.size.w != fF.size.w) // is there extra space?
         {
         bF.origin.x = -(bF.size.w / 2 - fF.size.w / 2) /2;
         // APP_LOG(APP_LOG_LEVEL_INFO, "origin.x =%d", bF.origin.x);
-        layer_set_bounds((Layer *)s_data_layer[screens[currentScreen].field_layer_map[i]], bF); // Centre the Bounds below the Frame
+        layer_set_bounds((Layer *)flm, bF); // Centre the Bounds below the Frame
       }
-      text_layer_set_text_alignment(s_data_layer[screens[currentScreen].field_layer_map[i]], GTextAlignmentCenter); //Should be Center but need to work out how!
-      text_layer_set_text(s_data_layer[screens[currentScreen].field_layer_map[i]], value); // This line only
+      text_layer_set_text_alignment(flm, GTextAlignmentCenter); //Should be Center but need to work out how!
+      text_layer_set_text(flm, value); // This line only
     }
     
   }
@@ -522,11 +535,11 @@ static void inbox_dropped_callback(AppMessageResult reason, void *context) {
 // Blank Normal
 void blankNormal(int screen, int field)
   {
-    text_layer_set_text(s_data_layer[screens[screen].field_layer_map[field]], "");
-    text_layer_set_background_color(s_data_layer[screens[screen].field_layer_map[field]], GColorClear);
-    text_layer_set_text_color(s_data_layer[screens[screen].field_layer_map[field]], GColorWhite);
+  TextLayer *tl = s_data_layer[screens[screen].field_layer_map[field]];
+    text_layer_set_text(tl /*s_data_layer[screens[screen].field_layer_map[field]] */, "");
+    text_layer_set_background_color(tl /*s_data_layer[screens[screen].field_layer_map[field]]*/, GColorClear);
+    text_layer_set_text_color(tl /*s_data_layer[screens[screen].field_layer_map[field]]*/, GColorWhite);
 }
-
 
 
 static void click_config_provider(void *context) {
@@ -536,7 +549,7 @@ static void click_config_provider(void *context) {
   window_long_click_subscribe(BUTTON_ID_SELECT, 0, long_select_handler, NULL);
   window_long_click_subscribe(BUTTON_ID_UP, 0, long_up_handler, NULL);
   window_long_click_subscribe(BUTTON_ID_DOWN, 0, long_down_handler, NULL);
-  window_multi_click_subscribe(BUTTON_ID_SELECT, 2, 3, 200, true, select_multi_click_handler);
+  window_multi_click_subscribe(BUTTON_ID_SELECT, 2, 4, 200, true, select_multi_click_handler);
 }
 
 static void init() {
@@ -561,7 +574,7 @@ static void init() {
    //APP_LOG(APP_LOG_LEVEL_INFO, "Inbox: %d OutBox %d", (int)app_message_inbox_size_maximum(),(int)app_message_outbox_size_maximum());
   
   // Open AppMessage
-  app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
+  app_message_open(app_message_inbox_size_maximum(), 0 /*app_message_outbox_size_maximum()*/);
   
 }
 
@@ -581,6 +594,9 @@ int main(void) {
       if (persist_exists(MAPPING_PKEY + i))
         persist_read_data(MAPPING_PKEY + i, &screens[i], sizeof(screens[i]));
 
+  configLock = screens[0].special; // Read back current state of config lock
+  
+  
   init();
   
   app_comm_set_sniff_interval(SNIFF_INTERVAL_REDUCED); // Beware!! Increased power usage, but much better responsiveness
@@ -590,6 +606,8 @@ int main(void) {
   app_comm_set_sniff_interval(SNIFF_INTERVAL_NORMAL);
 
   deinit();
+  
+  screens[0].special = configLock; // Store configuration lock state
   
    //Save configuration to storage
   for (i=0; i<NUM_SCREENS; i++)
@@ -615,13 +633,16 @@ void updatescreen(int thisScreen, char *initialValue)
   
   if (lastScreen != -1)  // If we had a last screen, blank out fields
     {
+    
     for (i=0; i< screens[lastScreen].num_fields; i++)
         {
-        text_layer_set_text(s_data_layer[screens[lastScreen].field_layer_map[i]], "");
+        TextLayer *dl = s_data_layer[screens[lastScreen].field_layer_map[i]];
+      
+        text_layer_set_text(dl, "");
         text_layer_set_text(s_data_title[screens[lastScreen].field_layer_map[i]], "");
-        text_layer_set_background_color(s_data_title[screens[lastScreen].field_layer_map[i]], GColorClear); 
-        text_layer_set_background_color(s_data_layer[screens[lastScreen].field_layer_map[i]], GColorClear);
-        text_layer_set_text_color(s_data_layer[screens[lastScreen].field_layer_map[i]], GColorWhite);
+        // XXX text_layer_set_background_color(s_data_title[screens[lastScreen].field_layer_map[i]], GColorClear); 
+        text_layer_set_background_color(dl, GColorClear);
+        text_layer_set_text_color(dl, GColorWhite);
       } 
   }
   
@@ -639,7 +660,7 @@ if (thisScreen != -1) // -1 if there is no screen to go to -- just blanking out 
       {
       if (screens[thisScreen].field_data_map[i] >= num_keytitles)
         screens[thisScreen].field_data_map[i] = 0;
-      text_layer_set_background_color(s_data_title[screens[thisScreen].field_layer_map[i]], GColorClear);
+      // XXX text_layer_set_background_color(s_data_title[screens[thisScreen].field_layer_map[i]], GColorClear);
       text_layer_set_text(s_data_title[screens[thisScreen].field_layer_map[i]], keyTitles[screens[thisScreen].field_data_map[i]].title);
     }
   lastScreen = thisScreen;
@@ -647,7 +668,7 @@ if (thisScreen != -1) // -1 if there is no screen to go to -- just blanking out 
   for (jj = 0; jj < 6; jj++) {
     doDataRevert(jj);
   }
-  static char buf[50];
+  static char buf[25];
   snprintf(buf, sizeof(buf), "StartLine    Screen %d", thisScreen + 1);
   text_layer_set_text(s_data_layer[TITLE_INDEX], buf);
   }

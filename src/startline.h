@@ -1,4 +1,4 @@
-#define STARTLINE_PEBBLE_VERSION "StartLine Pebble V2.0 build 1"
+#define STARTLINE_PEBBLE_VERSION "StartLine Pebble V2.3 bld 1"
 
 #define M_PI 3.14159
   
@@ -41,21 +41,7 @@
     #define KEY_CURRENT_SPEED 79
     #define KEY_CURRENT_DIR 80
   
-  /*Instruments
-  Boat Speed (bs) 70 (I will rename 11 to SOG)
-Heading (hdg) 71  (I will rename 51 to COG)
-Apparent Wind Speed (aws) 72
-Apparent Wind Angle (awa) 73
-True Wind Speed (tws) 74
-True Wind Angle (twa) 75
-True Wind Direction (twd) 76
-Depth (depth) 77
-Heel (heel) 78
-Current Spd (current[0]) 79
-Current Dir (current[1]) 80
-Turn(turn) 52 (this is a change)
-*/
-  
+  // Calculated fields
     #define KEY_TACK_LOG 200
     #define KEY_VMG_WIND 201
 
@@ -63,7 +49,7 @@ Turn(turn) 52 (this is a change)
 
     #define TRANSITION_IDLE 5 //Number of seconds of idle before we do auto transition
   
-  #define TITLE_INDEX 15
+    #define TITLE_INDEX 15
   
     #define MAPPING_PKEY  100 // Start key number for persistent storage
   
@@ -82,7 +68,7 @@ typedef struct {
   int field_data_map[6]; // How do these fields map to data
   int field_layer_map[6]; // How do these fields map to display real estate
   int field_small_layer_map[6]; // Not used but retained for compatibility with stored maps
-  int is_start; // true if this is a start related screen
+  int special; // screen[0].special used to remember config lock state
 } Screen;
 
 extern TextLayer *s_data_layer[];
@@ -93,7 +79,9 @@ extern keyTitle keyTitles[];
 extern bool doubleClick, messageClick;
 extern int currentScreen, holdThisScreen, configuring_field, configuring, num_keytitles;
 extern TextLayer *s_data_title[];
-
+extern int configLock;
+extern GBitmap *s_res_padlock;
+extern BitmapLayer *s_padlockLayer;
 
 void animate_layer_bounds(PropertyAnimation **anim, Layer* layer, GRect *start, GRect *finish, int duration, int delay);
 bool isBigField(int key);

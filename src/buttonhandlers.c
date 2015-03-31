@@ -2,7 +2,7 @@
 #include "startline.h"
 #include "screens.h"
   
-
+int configLock = 0;
 
   void doTitleInvert()
   {
@@ -10,9 +10,6 @@
   a.origin.y += a.size.h / 4;
   a.size.h -= a.size.h/4 ;
   layer_set_bounds(inverter_layer_get_layer(inverter), a);
-  
-  // To revert
-  // layer_set_bounds(inverter_layer_get_layer(inverter), GRect(0,0,0,0));
 }
   
 //
@@ -23,61 +20,31 @@
 //
 
 void select_click_handler(ClickRecognizerRef recognizer, void *context) {
-    if (messageClick && configuring)
+  if (messageClick && configuring)
     {
     screenMessage(""); // Check that configuring is not turned off in updatescreen
     doTitleInvert();
-
-      return;
+    return;
   }
   if (configuring)
       { // Set the current title back to normal
       layer_set_bounds(inverter_layer_get_layer(inverter), GRect(0,0,0,0));
-    
       configuring_field  = (1+configuring_field) % screens[currentScreen].num_fields;
-//    if (configuring_field == screens[currentScreen].num_fields)
-//      configuring_field = 0;
-  
-    doTitleInvert();
-
+      doTitleInvert();
     }
   else if (messageClick) 
     {
     doubleClick = false;
     screenMessage("");
   }
-  else {
+  else if (configLock == 1) {
     show_screens();
   }
 }
 
   
-  
-//
-// Up Click Handler
-//
-void up_click_handler(ClickRecognizerRef recognizer, void *context) {
-  if (messageClick && configuring) // Displayed a message whilst configuring
-    {
-    screenMessage("");
-    doTitleInvert();
-
-  }
-  if (configuring) { 
-    doDataRevert(configuring_field);
-    screens[currentScreen].field_data_map[configuring_field]++; //Step to the next data item in the list
-    if (screens[currentScreen].field_data_map[configuring_field] == num_keytitles) // Wrap at the end
-      screens[currentScreen].field_data_map[configuring_field] = 0;
-          // Set the title & blank data
-    text_layer_set_text(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], 
-                        keyTitles[screens[currentScreen].field_data_map[configuring_field]].title);
-
-    // Need to clear out data that may have just arrived & ensure that the field is not inverted
-    blankNormal(currentScreen, configuring_field);
-}
-    else if (doubleClick) //Confirming reset to default
-    {
-    screenMessage("");
+void resetDefault() {
+      screenMessage("");
     updatescreen(-1, "");
     int i;
     for (i=0; i<4; i++) // Step through 4 default screens
@@ -89,7 +56,6 @@ void up_click_handler(ClickRecognizerRef recognizer, void *context) {
             screens[i].field_layer_map[j] = screenDefault[i].field_layer_map[j];
             screens[i].field_data_map[j] = screenDefault[i].field_data_map[j];
             }
-        screens[i].is_start = screens[i].is_start;
     }
     for (i=4; i<NUM_SCREENS; i++) // Blank out the rest of the screens
       screens[i].num_fields = 0; 
@@ -97,26 +63,41 @@ void up_click_handler(ClickRecognizerRef recognizer, void *context) {
     currentScreen = 0;
     updatescreen(-2, "");
     doubleClick = false;
-    }
-  else if (messageClick)
+
+}
+  
+//
+// Up Click Handler
+//
+void up_click_handler(ClickRecognizerRef recognizer, void *context) {
+  if (messageClick && configuring) // Displayed a message whilst configuring
     {
     screenMessage("");
+    doTitleInvert();
   }
+  else if (configuring) {
+    int *cfdm = &(screens[currentScreen].field_data_map[configuring_field]);
+    doDataRevert(configuring_field);
+    *cfdm = (1 + *cfdm) % num_keytitles;  //Step to the next data item in the list
+    // Set the title & blank data
+    text_layer_set_text(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], 
+                        keyTitles[*cfdm].title);
+    // Need to clear out data that may have just arrived & ensure that the field is not inverted
+    blankNormal(currentScreen, configuring_field);
+}
+    else if (doubleClick) //Confirming reset to default
+    resetDefault();
+  else if (messageClick) // Just acknowledging a message
+    screenMessage("");
   else  // Step to next screen
     {    
-//Here
-
       holdThisScreen = TRANSITION_IDLE;
-    do { // Search through screens to find the next one in use
-      currentScreen--;
-    if (currentScreen <0)
-      currentScreen = NUM_SCREENS - 1;
+    do { // Search backwards through screens to find the next one in use
+      currentScreen = (currentScreen == 0) ? NUM_SCREENS - 1 : currentScreen - 1;
     } while (screens[currentScreen].num_fields == 0);
     updatescreen(currentScreen,"");
-
-  }
+  } // Stepping to next screen
 }
-
 
 //
 // Down Click Handler - just like the up click handler
@@ -127,46 +108,34 @@ void down_click_handler(ClickRecognizerRef recognizer, void *context) {
     screenMessage(""); // Blank the message
     doTitleInvert();
   }
-  if (configuring) {
+  else if (configuring) {
     int *fdm_cf = &(screens[currentScreen].field_data_map[configuring_field]);
     doDataRevert(configuring_field);
-    (*fdm_cf)--;
-    //screens[currentScreen].field_data_map[configuring_field]--;
-
-    if ((*fdm_cf) < 0)
-      (*fdm_cf) = num_keytitles - 1;
-      text_layer_set_text(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], 
+    (*fdm_cf) = (*fdm_cf) == 0 ? num_keytitles - 1 : (*fdm_cf) - 1;
+    text_layer_set_text(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], 
                         keyTitles[*fdm_cf].title);
-        //screens[currentScreen].field_data_map[configuring_field] = num_keytitles -1;
-//    text_layer_set_text(s_data_title[screens[currentScreen].field_layer_map[configuring_field]], 
-//                        keyTitles[screens[currentScreen].field_data_map[configuring_field]].title);
-//    screens[currentScreen].field_data_map[configuring_field] = fdm_cf;
     blankNormal(currentScreen, configuring_field);
-  }
+  } // Configuring
   else if (messageClick) // Cancelling reset to default
   {
     doubleClick = false;
     screenMessage("");
   }
   else { // Not configuring - just step to next screen
-
      holdThisScreen = TRANSITION_IDLE;
     do { // Search through screens to find the next one in use
-      currentScreen++;
-    if (currentScreen == NUM_SCREENS)
-      currentScreen = 0;
+      currentScreen = (1 + currentScreen) % NUM_SCREENS;
     } while (screens[currentScreen].num_fields == 0);
     updatescreen(currentScreen,"");   
-      }
-  
+      } // Stepping to next screen
 }
   
 //
 // Long Select Handler
 //
 void long_select_handler(ClickRecognizerRef recognizer, void *context) {
-    if (messageClick)
-      return; // Not allowed while a messgae is displayed
+    if (messageClick || configLock == 0)
+      return; // Not allowed while a messgae is displayed or if configuration is locked
     if (configuring == 0) { 
       holdThisScreen = -1;
       configuring = 1; // Select configuring mode
@@ -188,34 +157,32 @@ void long_select_handler(ClickRecognizerRef recognizer, void *context) {
       }
       if (preStart && postStart)
         {
-        screenMessage("Cannot mix pre and post start fields on one screen");
+        screenMessage("Can't mix pre & post start fields");
       }
-      else
+      else // End of field configuring
         {
       configuring = 0;
       holdThisScreen = TRANSITION_IDLE;
       layer_set_bounds(inverter_layer_get_layer(inverter), GRect(0,0,0,0));
-
       }
     }
 }
   
 void long_up_handler(ClickRecognizerRef recognizer, void *context) {
-  if (configuring == 0 && !messageClick && !doubleClick)  // When not configuring, long up creates a new screen like the current one
+  if (configLock == 1 && configuring == 0 && !messageClick && !doubleClick)  // When not configuring, long up creates a new screen like the current one
   {
+    Screen *cs = &screens[currentScreen];
     int i;
     for (i=0; i<NUM_SCREENS; i++) // Go find a free screen slot
       if (screens[i].num_fields == 0)
       {
-          screens[i].num_fields = screens[currentScreen].num_fields;
+          screens[i].num_fields = /* screens[currentScreen]. */ cs->num_fields;
           int j;
-          for (j=0; j<screens[currentScreen].num_fields; j++) // Copy the map from the current screen
+          for (j=0; j< /* screens[currentScreen].*/ cs->num_fields; j++) // Copy the map from the current screen
             {
-            screens[i].field_layer_map[j] = screens[currentScreen].field_layer_map[j];
-            screens[i].field_data_map[j] = screens[currentScreen].field_data_map[j];
-//            screens[i].field_small_layer_map[j] = screens[currentScreen].field_small_layer_map[j];
+            screens[i].field_layer_map[j] = /* screens[currentScreen].*/ cs->field_layer_map[j];
+            screens[i].field_data_map[j] = /* screens[currentScreen].*/ cs->field_data_map[j];
             }
-      screens[i].is_start = screens[currentScreen].is_start;
       break;
     }
     if (i < NUM_SCREENS)
@@ -230,7 +197,7 @@ void long_up_handler(ClickRecognizerRef recognizer, void *context) {
 }
 
 void long_down_handler(ClickRecognizerRef recognizer, void *context) {
-  if (configuring == 0 && !messageClick && !doubleClick) // Long down deletes the current screen so long as it's not the last one
+  if (configLock == 1 && configuring == 0 && !messageClick && !doubleClick) // Long down deletes the current screen so long as it's not the last one
   {
     int i;
     int ok = 0;  //Always allow delete as long as there is at least one remaining screen
@@ -255,9 +222,7 @@ void long_down_handler(ClickRecognizerRef recognizer, void *context) {
     else
       vibes_long_pulse();
 }
-
 }
-
 
 void select_multi_click_handler(ClickRecognizerRef recognizer, void *context) {
   if (messageClick)
@@ -265,7 +230,7 @@ void select_multi_click_handler(ClickRecognizerRef recognizer, void *context) {
   int i = click_number_of_clicks_counted(recognizer);
   if (i==2)
     {
-  if (!configuring)
+  if (configLock == 1 && !configuring)
     {
   doubleClick = true;
   screenMessage("Press UP to reset to default, DOWN otherwise");
@@ -279,4 +244,10 @@ void select_multi_click_handler(ClickRecognizerRef recognizer, void *context) {
   }
     
   } 
+  else if (i == 4) 
+    {
+    configLock = 1 - configLock;
+    layer_set_hidden((Layer *)s_padlockLayer, configLock == 1);
+    //screenMessage(configLock == 0 ? "Config locked" : "Config unlocked");
+  }
 }

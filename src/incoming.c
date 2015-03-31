@@ -31,21 +31,14 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
   int twd, bs, hdg;
   
   if (doubleClick || messageClick)
-    return;
+    return; // Get out of here if we are displaying a message - note - we may miss a tack because of this, but unlikely!!
   startingScreen = currentScreen;
-  
-  if (flashFlag == 0) {
-    layer_set_bounds(inverter_layer_get_layer(flash), GRect(0,0,0,0)); 
-    flashFlag = 1;
-      }
-  else {
-    layer_set_bounds(inverter_layer_get_layer(flash), GRect(0,0,10,10)); // Turn on the inverter layer
-    flashFlag = 0;
-  }
+
+  layer_set_bounds(inverter_layer_get_layer(flash), flashFlag == 0 ? GRectZero : GRect(0,0,7,7)); 
+  flashFlag = 1 - flashFlag;
   
   if (holdThisScreen > 0)
     holdThisScreen--;
-  // For all items
   
   weAreRacing = false; // Assume we're not racing unless we receive a mark name
   do
@@ -61,6 +54,8 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
     j = 0;
     while(t != NULL) {
     foundKey = true;
+    char *bj;
+    bj = buffer[j];
     // Which key was received?
     //APP_LOG(APP_LOG_LEVEL_INFO, "Key %d Value %d", (int)t->key, (int)t->value->int32);
     switch(t->key) {
@@ -71,8 +66,7 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
       case KEY_SECS_TO_START:
       case KEY_LAY_BURN:
       case KEY_TIME_TO_MARK:
-      negNum = false;
-      
+      negNum = false;    
       tmp = abs((int)t->value->int32) ;
       negNum = ((int)t->value->int32 < 0);
 
@@ -80,36 +74,36 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
       {
         if ((tmp < 6000 && isBigField(t->key)) || tmp < 600) // We have room for mins & seconds & always when mins < 10
         {
-          snprintf(buffer[j], sizeof(buffer[j]),"%d:%02d", tmp / 60, tmp % 60);
+          snprintf(bj, sizeof(buffer[0]),"%d:%02d", tmp / 60, tmp % 60);
         }
         else if (tmp < 3600)
         {
-          snprintf(buffer[j], sizeof(buffer[j]),"%dm", tmp / 60 + ((tmp % 60) >= 30 ? 1:0));
+          snprintf(bj, sizeof(buffer[0]),"%dm", tmp / 60 + ((tmp % 60) >= 30 ? 1:0));
         }
         else
           {
-          snprintf(buffer[j], sizeof(buffer[j]),"%dh", tmp / 3600 + ((tmp % 3600) >= 1800 ? 1:0));          
+          snprintf(bj, sizeof(buffer[0]),"%dh", tmp / 3600 + ((tmp % 3600) >= 1800 ? 1:0));          
         }
       }
       else // (tmp < 100)
       {
-        snprintf(buffer[j], sizeof(buffer[j]),"%ds", tmp);
+        snprintf(bj, sizeof(buffer[0]),"%ds", tmp);
       }
       break;
 
       case KEY_LAST_TACK:
       oldTack = thisTack; // Remember the tack from the last message 
       thisTack = (int)t->value->int32;
-      negNum = ((int)t->value->int32 < 0); // This definitely shouldn't happen!
+      negNum = false; // This definitely shouldn't happen!
       if (currentState != 1)
-        buffer[j][0] = '\0';
+        bj[0] = '\0';
       else
-        snprintf(buffer[j], sizeof(buffer[j]),"%d", abs((int)t->value->int32));
+        snprintf(bj, sizeof(buffer[0]),"%d", abs((int)t->value->int32));
       break;
       
       case KEY_TARGET_TACK:
       negNum = false;
-      snprintf(buffer[j], sizeof(buffer[j]),"%d", abs((int)t->value->int32));
+      snprintf(bj, sizeof(buffer[0]),"%d", abs((int)t->value->int32));
       
       case KEY_TWD:
       if (t->key == KEY_TWD) {
@@ -133,7 +127,7 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
       case KEY_HEEL:
       case KEY_CURRENT_DIR:
       negNum = ((int)t->value->int32 < 0);
-      snprintf(buffer[j], sizeof(buffer[j]),"%d", abs((int)t->value->int32));
+      snprintf(bj, sizeof(buffer[0]),"%d", abs((int)t->value->int32));
       break;
  
       case KEY_BOAT_SOG:
@@ -142,7 +136,7 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
         bs = t->value->int32;
       case KEY_TARGET_SPEED: 
       case KEY_CURRENT_SPEED:
-      snprintf(buffer[j], sizeof(buffer[j]),"%d.%d", abs((int)t->value->int32)/10, abs((int)t->value->int32) % 10);
+      snprintf(bj, sizeof(buffer[0]),"%d.%d", abs((int)t->value->int32)/10, abs((int)t->value->int32) % 10);
       negNum = ((int)t->value->int32 < 0);
       break;
       
@@ -150,7 +144,7 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
       case KEY_MARK_LAY_DIST:
       negNum = false;
       if (currentState != 1  && t->key == KEY_MARK_LAY_DIST)
-        buffer[j][0] = '\000';
+        bj[0] = '\000';
       else
         {
         a = (int)t->value->int32;
@@ -159,7 +153,7 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
         b = a / 18.52;
         bool bf = isBigField((int)t->key);
         if (a < 1000) // Less than 1000m - just show m
-          snprintf(buffer[j], sizeof(buffer[j]), "%d", a);
+          snprintf(bj, sizeof(buffer[0]), "%d", a);
         else if (b < 1000 || bf) // less than 100nm or it's a big field - show nm.n
           {
           int d1, d2, d3;
@@ -173,11 +167,11 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
             d1 += 1;
             d2 = 0;
           }
-          snprintf(buffer[j], sizeof(buffer[j]), "%d.%d", d1, d2);
+          snprintf(bj, sizeof(buffer[0]), "%d.%d", d1, d2);
         }
         else
             {
-            snprintf(buffer[j], sizeof(buffer[j]), "%d", (int)b/10);
+            snprintf(bj, sizeof(buffer[0]), "%d", (int)b/10);
         }
       }
       break;
@@ -185,7 +179,7 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
       case KEY_LAY_SEL:
       //APP_LOG(APP_LOG_LEVEL_INFO, "Key %d Value %d", (int)t->key, (int)t->value->int32);
       negNum = false;
-      snprintf(buffer[j], sizeof(buffer[j]),"%s", layDecode[(int)t->value->int32]);
+      snprintf(bj, sizeof(buffer[0]),"%s", layDecode[(int)t->value->int32]);
       break;
       
       /* These are the turn style values - Rnn & Lnn */
@@ -193,11 +187,11 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
       case KEY_TACK_HEADER:
       negNum = false;
       if (currentState != 1 && t-> key == KEY_TACK_HEADER)
-        buffer[j][0] = '\000';
+        bj[0] = '\000';
       else
         {
 //        if (t->value->int32 >= 0)
-          snprintf(buffer[j], sizeof(buffer[j]), "%c%02d", t->value->int32 >= 0 ? 'R' : 'L', abs((int)t->value->int32));
+          snprintf(bj, sizeof(buffer[0]), "%c%02d", t->value->int32 >= 0 ? 'R' : 'L', abs((int)t->value->int32));
 //        else
 //          snprintf(buffer[j], sizeof(buffer[j]), "L%02d", -(int)(t->value->int32));
       }
@@ -224,13 +218,13 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
         }
       }
       *sb = '\000';
-      snprintf(buffer[j], sizeof(buffer[j]), "%s", tmpbuf);
+      snprintf(bj, sizeof(buffer[0]), "%s", tmpbuf);
       break;
       
       case KEY_TACK_STATE:
       a = (int)t->value->int32;
       negNum = a < 0;
-      snprintf(buffer[j], sizeof(buffer[j]), "%d", abs((int)(t->value->int32)));
+      snprintf(bj, sizeof(buffer[0]), "%d", abs((int)(t->value->int32)));
       if (currentState == 1 && a != 1) // Just detected a tack
         {
         tackLog[0] = oldTack;
@@ -249,7 +243,7 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
           if (tackLog[k] == 0)
             tackLogBuffer[k][0] = '\000';
           else
-            snprintf(tackLogBuffer[k], sizeof(tackLogBuffer[k]), "%d", tackLog[k]);
+            snprintf(tackLogBuffer[k], sizeof(tackLogBuffer[0]), "%d", tackLog[k]);
           setField(i, false, tackLogBuffer[k]);
           fieldUpdated[i] = true;
           k++; // Step to the next tacklog entry
@@ -291,12 +285,12 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
           if (weAreRacing && keyTitles[screens[currentScreen].field_data_map[i]].preStart) // We are racing & we have pre-start data displayed
               doScreenTransition = true; // Force a transition if we are racing with a screen displaying prestart data
           if (keyTitles[screens[currentScreen].field_data_map[i]].key == (int)t->key) // Did we find a match?
-            {
-            setField(i, negNum, buffer[j] );
+            { // To this point we have only decoded the message into the buffer
+            setField(i, negNum, bj);
             fieldUpdated[i] = true;
           }
         }
-    // Use next buffer - seems that the buffer remains in use until the data actually appears on the screen
+    // Use next buffer - the buffer remains in use even after the data actually appears on the screen
     // So we need to use a different buffer for each message.
       j++;
     }
@@ -305,30 +299,31 @@ void inbox_received_callback(DictionaryIterator *iterator, void *context) {
     
   if (weAreRacing && doScreenTransition && holdThisScreen == 0) // We are racing, didn't find a match & don't need to hold this screen
     {
-      do
+      do // Loop around looing for the next in use screen
         {
-        currentScreen++;
-        if (currentScreen == NUM_SCREENS)
-          currentScreen = 0;
+        currentScreen = 1 + currentScreen % NUM_SCREENS;
+/*        if (currentScreen == NUM_SCREENS)
+          currentScreen = 0;*/
       } while (screens[currentScreen].num_fields == 0);
     if (currentScreen == startingScreen)
       doScreenTransition = false; // Stop looking - we're back where we started!
     updatescreen(currentScreen, NULL); 
   }
-  } while (weAreRacing && doScreenTransition && holdThisScreen == 0); // j is the index to the next available buffer.  If it is zero, we didn't find
+  } while (weAreRacing && doScreenTransition && holdThisScreen == 0);
   
   int VMGtoWind;
   
   if (canDoVMG) {
-    VMGtoWind = mycos(M_PI * ((hdg - twd) / 180.0)) * bs * 10;
-    snprintf(VMGtoWindBuffer, sizeof(VMGtoWindBuffer), "%d.%02d", abs(VMGtoWind)/ 100, abs(VMGtoWind)% 100);
+    VMGtoWind = mycos(M_PI * ((hdg - twd) / 180.0)) * (bs * 10);
+    VMGtoWind = VMGtoWind / 10 + (VMGtoWind % 10 >=5 ? 1 : 0);
+    snprintf(VMGtoWindBuffer, sizeof(VMGtoWindBuffer), "%d.%d", abs(VMGtoWind)/10, abs(VMGtoWind)%10);
   }
   
   // Post process screen fields - VMGWind, blank non-updated fields etc.
   for (ii = 0; ii < screens[currentScreen].num_fields; ii++) {
     if (canDoVMG) {
       if (keyTitles[screens[currentScreen].field_data_map[ii]].key == KEY_VMG_WIND) {
-        setField(ii, VMGtoWind < 0, VMGtoWindBuffer);  
+        setField(ii, false, VMGtoWindBuffer);  
         fieldUpdated[ii] = true;
       }
     }

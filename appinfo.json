@@ -9,6 +9,11 @@
     "resources": {
         "media": [
             {
+                "file": "images/padlock_closedc.png",
+                "name": "PADLOCK",
+                "type": "png"
+            },
+            {
                 "file": "images/bwarrow_right.png",
                 "name": "BWARROW",
                 "type": "png"
@@ -58,7 +63,7 @@
     "shortName": "StartLine",
     "uuid": "743c5eb7-77fb-4821-913a-5d855e2c3c84",
     "versionCode": 1,
-    "versionLabel": "2.0",
+    "versionLabel": "2.3",
     "watchapp": {
         "watchface": false
     }

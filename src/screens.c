@@ -10,14 +10,25 @@ static GBitmap *s_res_bwarrow;
 static TextLayer *s_textlayer_11;
 static BitmapLayer *s_bitmaplayer_1;
 static InverterLayer *s_inverterlayer_1;
-char *sTxt[10] = {"Screen 1", "Screen 2", "Screen 3", "Screen 4", "Screen 5", "Screen 6", "Screen 7", "Screen 8", "Screen 9", "Screen 10"};
+char *sTxt[10];
 int sNum[10] = {0,1,2,3,4,5,6,7,8,9};
+static char sTxtBuf[10][13];
 TextLayer *l[10] = {};
+
+void moveArrow(int ss) {
+  GRect g, h;
+  g = layer_get_frame((Layer *)l[ss]);
+  h = layer_get_frame((Layer *)s_bitmaplayer_1);
+  h.origin.x = 0;
+  h.origin.y = g.origin.y + 4;
+  layer_set_frame((Layer *)s_bitmaplayer_1, h);
+}
 
 static TextLayer *setTL(GRect g, GColor colour, char *name, Window *window) {
   TextLayer *t;
   t = text_layer_create(g);
   text_layer_set_background_color(t, colour);
+  text_layer_set_font(t, s_res_gothic_18_bold);
   text_layer_set_text(t, name);
   layer_add_child(window_get_root_layer(window), (Layer *)t);
   return t;
@@ -27,29 +38,40 @@ static TextLayer *setTL(GRect g, GColor colour, char *name, Window *window) {
 static void initialise_ui(void) {
   s_window = window_create();
   window_set_fullscreen(s_window, true);
+  int i;
   
   s_res_gothic_18_bold = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
   s_res_bwarrow = gbitmap_create_with_resource(RESOURCE_ID_BWARROW);
   
-  l[0] = setTL(GRect(16, 28, 100, 16), GColorClear, sTxt[0], s_window);
-  l[1] = setTL(GRect(16,40,100,16), GColorClear, sTxt[1], s_window);
-  l[2] = setTL(GRect(16, 52, 100, 16), GColorClear, sTxt[2], s_window);
-  l[3] = setTL(GRect(16, 64, 100, 16), GColorClear, sTxt[3], s_window);
-  l[4] = setTL(GRect(16, 76, 100, 16), GColorClear, sTxt[4], s_window);
-  l[5] = setTL(GRect(16, 88, 100, 16), GColorClear, sTxt[5], s_window);
-  l[6] = setTL(GRect(16, 100, 100, 16), GColorClear, sTxt[6], s_window);
-  l[7] = setTL(GRect(16, 112, 100, 16), GColorClear, sTxt[7], s_window);
-  l[8] = setTL(GRect(16, 124, 100, 16), GColorClear, sTxt[8], s_window);
-  l[9] = setTL(GRect(16, 136, 100, 16), GColorClear, sTxt[9], s_window);
-  s_textlayer_11 = setTL(GRect(3,1,138,24), GColorClear, "Reorder Screens", s_window);
+  for (i = 0; i < 10; i++) {
+    if (screens[i].num_fields == 0) {
+      sTxt[i] = "Blank";
+    } else {
+      snprintf(sTxtBuf[i], sizeof(sTxtBuf[i]), "Screen %d(%d)", i+1, screens[i].num_fields);      
+      sTxt[i] = sTxtBuf[i];
+    }
+  }
+ 
+  l[0] = setTL(GRect(16, 20, 100, 18), GColorClear, sTxt[0], s_window);
+  l[1] = setTL(GRect(16, 34, 100, 18), GColorClear, sTxt[1], s_window);
+  l[2] = setTL(GRect(16, 48, 100, 18), GColorClear, sTxt[2], s_window);
+  l[3] = setTL(GRect(16, 62, 100, 18), GColorClear, sTxt[3], s_window);
+  l[4] = setTL(GRect(16, 76, 100, 18), GColorClear, sTxt[4], s_window);
+  l[5] = setTL(GRect(16, 90, 100, 18), GColorClear, sTxt[5], s_window);
+  l[6] = setTL(GRect(16, 104, 100, 18), GColorClear, sTxt[6], s_window);
+  l[7] = setTL(GRect(16, 118, 100, 18), GColorClear, sTxt[7], s_window);
+  l[8] = setTL(GRect(16, 132, 100, 18), GColorClear, sTxt[8], s_window);
+  l[9] = setTL(GRect(16, 146, 100, 18), GColorClear, sTxt[9], s_window);
+  s_textlayer_11 = setTL(GRect(3,0,138,24), GColorClear, "Reorder Screens", s_window);
+  text_layer_set_text_alignment(s_textlayer_11, GTextAlignmentCenter);
   
-  // s_bitmaplayer_1
+ // Movable Arrow
   s_bitmaplayer_1 = bitmap_layer_create(GRect(0, 28, 16, 16));
   bitmap_layer_set_bitmap(s_bitmaplayer_1, s_res_bwarrow);
   layer_add_child(window_get_root_layer(s_window), (Layer *)s_bitmaplayer_1);
-  
-  // s_inverterlayer_1
-  s_inverterlayer_1 = inverter_layer_create(GRect(14, 29, 65, 13));
+  moveArrow(0);
+  // Inverter Layer
+  s_inverterlayer_1 = inverter_layer_create(GRect(14, 29, 65, 15));
   layer_add_child(window_get_root_layer(s_window), (Layer *)s_inverterlayer_1);
 }
 
@@ -69,11 +91,11 @@ static bool moving = false;
 void moveInverter() {
   GRect i;
   
-  i.size.h = 13;
-  i.size.w = 65;
+  i.size.h = 15;
+  i.size.w = 85;
   i.origin = layer_get_frame((Layer *)l[s]).origin;
   i.origin.x -= 2;
-  i.origin.y += 3;
+  i.origin.y += 5;
   layer_set_frame((Layer *)s_inverterlayer_1, i);
 }
 
@@ -97,24 +119,9 @@ void swapText(int old, int new) {
   tmp = sNum[old];
   sNum[old] = sNum[new];
   sNum[new] = tmp;
-  if (screens[sNum[new]].num_fields == 0) 
-    text_layer_set_text(l[new], "Empty");
-  else
-    text_layer_set_text(l[new], sTxt[sNum[new]]);
-  if (screens[sNum[old]].num_fields == 0) 
-    text_layer_set_text(l[old], "Empty");
-  else
-    text_layer_set_text(l[old], sTxt[sNum[old]]);
-  
-}
 
-void moveArrow() {
-  GRect g, h;
-  g = layer_get_frame((Layer *)l[s]);
-  h = layer_get_frame((Layer *)s_bitmaplayer_1);
-  h.origin.x = 0;
-  h.origin.y = g.origin.y + 1;
-  layer_set_frame((Layer *)s_bitmaplayer_1, h);
+    text_layer_set_text(l[new], sTxt[sNum[new]]);
+    text_layer_set_text(l[old], sTxt[sNum[old]]);  
 }
 
 static void s_up_click_handler(ClickRecognizerRef recognizer, void *context) {
@@ -124,7 +131,7 @@ static void s_up_click_handler(ClickRecognizerRef recognizer, void *context) {
   s--;
   if (s < 0)
     s = 9;
-  moveArrow();
+  moveArrow(s);
   if (moving) {
     moveInverter();
     swapText(old_s, s);
@@ -137,7 +144,7 @@ static void s_down_click_handler(ClickRecognizerRef recognizer, void *context) {
   old_s = s;
   s++;
   s = s % 10;
-  moveArrow();
+  moveArrow(s);
   if (moving) {
     moveInverter();
     swapText(old_s, s);
@@ -180,6 +187,7 @@ static void handle_window_unload(Window* window) {
 
 void show_screens(void) {
   initialise_ui();
+  moving = false;
   APP_LOG(APP_LOG_LEVEL_DEBUG, "done ui free=%d", (int)heap_bytes_free());
   int i;
   for (i = 0; i< NUM_SCREENS; i++)
@@ -190,10 +198,7 @@ void show_screens(void) {
   window_set_window_handlers(s_window, (WindowHandlers) {
     .unload = handle_window_unload,
   });
-  
-  for (i = 0; i< NUM_SCREENS; i++) 
-    if (screens[i].num_fields == 0)
-      text_layer_set_text(l[i], "Empty");
+
   window_stack_push(s_window, true);
 }
 
